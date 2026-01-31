@@ -1,0 +1,253 @@
+import { Recipe } from './types';
+
+export const seedRecipes: Recipe[] = [
+  {
+    id: 'pasta-carbonara',
+    title: 'Pasta Carbonara',
+    description: 'Classic Italian pasta with eggs, cheese, pancetta, and black pepper. Rich, creamy, and ready in 30 minutes.',
+    ingredients: [
+      '400g spaghetti',
+      '200g pancetta or guanciale, diced',
+      '4 large egg yolks',
+      '2 whole eggs',
+      '100g Pecorino Romano, finely grated',
+      '50g Parmesan, finely grated',
+      'Freshly ground black pepper',
+      'Salt for pasta water',
+    ],
+    steps: [
+      {
+        id: 'step1',
+        text: 'Bring a large pot of salted water to boil',
+        dependsOn: [],
+      },
+      {
+        id: 'step2',
+        text: 'Whisk egg yolks, whole eggs, and grated cheeses in a bowl. Season with pepper.',
+        dependsOn: [],
+      },
+      {
+        id: 'step3',
+        text: 'Cook pancetta in a large skillet over medium heat until crispy (8-10 min)',
+        dependsOn: [],
+      },
+      {
+        id: 'step4',
+        text: 'Cook spaghetti in boiling water until al dente. Reserve 1 cup pasta water before draining.',
+        dependsOn: ['step1'],
+      },
+      {
+        id: 'step5',
+        text: 'Remove skillet from heat. Add drained pasta to pancetta and toss.',
+        dependsOn: ['step3', 'step4'],
+      },
+      {
+        id: 'step6',
+        text: 'Pour egg mixture over pasta, tossing quickly. Add pasta water as needed for silky sauce.',
+        dependsOn: ['step2', 'step5'],
+      },
+      {
+        id: 'step7',
+        text: 'Serve immediately with extra cheese and black pepper.',
+        dependsOn: ['step6'],
+      },
+    ],
+    createdAt: Date.now() - 86400000 * 3,
+    featured: true,
+  },
+  {
+    id: 'fluffy-pancakes',
+    title: 'Fluffy Buttermilk Pancakes',
+    description: 'Light and fluffy pancakes with crispy edges. Perfect weekend breakfast.',
+    ingredients: [
+      '2 cups all-purpose flour',
+      '2 tbsp sugar',
+      '2 tsp baking powder',
+      '1 tsp baking soda',
+      '1/2 tsp salt',
+      '2 cups buttermilk',
+      '2 large eggs',
+      '1/4 cup melted butter',
+      '1 tsp vanilla extract',
+      'Butter for cooking',
+      'Maple syrup for serving',
+    ],
+    steps: [
+      {
+        id: 'step1',
+        text: 'Whisk flour, sugar, baking powder, baking soda, and salt in a large bowl',
+        dependsOn: [],
+      },
+      {
+        id: 'step2',
+        text: 'In another bowl, whisk buttermilk, eggs, melted butter, and vanilla',
+        dependsOn: [],
+      },
+      {
+        id: 'step3',
+        text: 'Heat griddle or skillet over medium heat. Lightly butter the surface.',
+        dependsOn: [],
+      },
+      {
+        id: 'step4',
+        text: 'Pour wet ingredients into dry ingredients. Stir until just combined (lumps are OK).',
+        dependsOn: ['step1', 'step2'],
+      },
+      {
+        id: 'step5',
+        text: 'Pour 1/4 cup batter per pancake onto griddle. Cook until bubbles form on surface.',
+        dependsOn: ['step3', 'step4'],
+      },
+      {
+        id: 'step6',
+        text: 'Flip and cook until golden brown on the other side (1-2 min).',
+        dependsOn: ['step5'],
+      },
+      {
+        id: 'step7',
+        text: 'Serve hot with butter and maple syrup.',
+        dependsOn: ['step6'],
+      },
+    ],
+    createdAt: Date.now() - 86400000 * 2,
+    featured: true,
+  },
+  {
+    id: 'vegetable-stir-fry',
+    title: 'Quick Vegetable Stir Fry',
+    description: 'Colorful and healthy stir fry with crisp vegetables in a savory sauce. Ready in 20 minutes.',
+    ingredients: [
+      '2 cups broccoli florets',
+      '1 red bell pepper, sliced',
+      '1 yellow bell pepper, sliced',
+      '2 carrots, julienned',
+      '1 cup snap peas',
+      '3 cloves garlic, minced',
+      '1 tbsp fresh ginger, minced',
+      '3 tbsp soy sauce',
+      '1 tbsp sesame oil',
+      '2 tbsp vegetable oil',
+      '1 tbsp cornstarch + 2 tbsp water',
+      'Sesame seeds for garnish',
+    ],
+    steps: [
+      {
+        id: 'step1',
+        text: 'Cut broccoli into florets and slice bell peppers',
+        dependsOn: [],
+      },
+      {
+        id: 'step2',
+        text: 'Julienne carrots and trim snap peas',
+        dependsOn: [],
+      },
+      {
+        id: 'step3',
+        text: 'Mince garlic and ginger',
+        dependsOn: [],
+      },
+      {
+        id: 'step4',
+        text: 'Mix soy sauce, sesame oil, and cornstarch slurry in a small bowl',
+        dependsOn: [],
+      },
+      {
+        id: 'step5',
+        text: 'Heat vegetable oil in a wok over high heat until shimmering',
+        dependsOn: [],
+      },
+      {
+        id: 'step6',
+        text: 'Add garlic and ginger, stir-fry for 30 seconds until fragrant',
+        dependsOn: ['step3', 'step5'],
+      },
+      {
+        id: 'step7',
+        text: 'Add broccoli and carrots first (they take longest). Stir-fry 2 minutes.',
+        dependsOn: ['step1', 'step2', 'step6'],
+      },
+      {
+        id: 'step8',
+        text: 'Add bell peppers and snap peas. Stir-fry another 2 minutes.',
+        dependsOn: ['step7'],
+      },
+      {
+        id: 'step9',
+        text: 'Pour in sauce mixture. Toss until vegetables are coated and sauce thickens.',
+        dependsOn: ['step4', 'step8'],
+      },
+      {
+        id: 'step10',
+        text: 'Garnish with sesame seeds and serve immediately over rice.',
+        dependsOn: ['step9'],
+      },
+    ],
+    createdAt: Date.now() - 86400000,
+    featured: false,
+  },
+  {
+    id: 'chocolate-chip-cookies',
+    title: 'Classic Chocolate Chip Cookies',
+    description: 'Chewy centers with crispy edges. The perfect cookie for any occasion.',
+    ingredients: [
+      '2 1/4 cups all-purpose flour',
+      '1 tsp baking soda',
+      '1 tsp salt',
+      '1 cup (2 sticks) butter, softened',
+      '3/4 cup granulated sugar',
+      '3/4 cup packed brown sugar',
+      '2 large eggs',
+      '2 tsp vanilla extract',
+      '2 cups chocolate chips',
+    ],
+    steps: [
+      {
+        id: 'step1',
+        text: 'Preheat oven to 375°F (190°C). Line baking sheets with parchment paper.',
+        dependsOn: [],
+      },
+      {
+        id: 'step2',
+        text: 'Whisk flour, baking soda, and salt in a medium bowl',
+        dependsOn: [],
+      },
+      {
+        id: 'step3',
+        text: 'Beat softened butter and both sugars until light and fluffy (3-4 min)',
+        dependsOn: [],
+      },
+      {
+        id: 'step4',
+        text: 'Add eggs one at a time, then vanilla. Beat until combined.',
+        dependsOn: ['step3'],
+      },
+      {
+        id: 'step5',
+        text: 'Gradually mix in flour mixture until just combined',
+        dependsOn: ['step2', 'step4'],
+      },
+      {
+        id: 'step6',
+        text: 'Fold in chocolate chips',
+        dependsOn: ['step5'],
+      },
+      {
+        id: 'step7',
+        text: 'Drop rounded tablespoons of dough onto prepared baking sheets, 2 inches apart',
+        dependsOn: ['step1', 'step6'],
+      },
+      {
+        id: 'step8',
+        text: 'Bake for 9-11 minutes until edges are golden but centers look slightly underdone',
+        dependsOn: ['step7'],
+      },
+      {
+        id: 'step9',
+        text: 'Cool on baking sheet for 5 minutes, then transfer to wire rack',
+        dependsOn: ['step8'],
+      },
+    ],
+    createdAt: Date.now(),
+    featured: true,
+  },
+];
