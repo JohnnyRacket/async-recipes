@@ -8,11 +8,16 @@ const RECIPE_IDS_KEY = 'recipe-ids';
 
 // Check if we're in development without Redis configured
 const isRedisConfigured = () => {
-  return process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN;
+  return process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN;
 };
 
-// Create Redis client (only when configured)
-const redis = isRedisConfigured() ? Redis.fromEnv() : null;
+// Create Redis client with Vercel KV env var names
+const redis = isRedisConfigured()
+  ? new Redis({
+      url: process.env.KV_REST_API_URL!,
+      token: process.env.KV_REST_API_TOKEN!,
+    })
+  : null;
 
 // In-memory fallback for development without Redis
 let memoryStore: Map<string, Recipe> = new Map();
