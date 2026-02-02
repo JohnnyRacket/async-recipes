@@ -140,7 +140,8 @@ Create a `.env.local` file:
 KV_REST_API_URL=
 KV_REST_API_TOKEN=
 
-# OpenAI API Key (required for AI extraction)
+# OpenAI API Key (required for AI extraction via Vercel AI Gateway)
+# When deployed on Vercel, you can also use Vercel's built-in AI features
 OPENAI_API_KEY=
 ```
 

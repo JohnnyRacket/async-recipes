@@ -1,5 +1,5 @@
 import { streamObject } from 'ai';
-import { openai } from '@ai-sdk/openai';
+import { gateway } from '@ai-sdk/gateway';
 import { RecipeSchema } from '@/lib/schemas';
 
 export const runtime = 'edge';
@@ -52,7 +52,7 @@ export async function POST(req: Request) {
 
     // Use AI SDK to stream structured recipe extraction
     const result = streamObject({
-      model: openai('gpt-4o-mini'),
+      model: gateway('openai:gpt-4o-mini'),
       schema: RecipeSchema,
       prompt: `Extract a recipe from the following webpage content. 
       
