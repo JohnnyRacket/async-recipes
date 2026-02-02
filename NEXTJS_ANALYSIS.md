@@ -146,31 +146,34 @@ export async function generateStaticParams() {
 
 ## 3. Caching & Revalidation
 
-### Caching with `unstable_cache`
+### Caching with `'use cache'` Directive
 
 **Location:** `lib/kv.ts`
 
 ```tsx
-export const getCachedRecipes = unstable_cache(
-  getRecipes,
-  ['recipes'],        // Cache key
-  { tags: ['recipes'] } // Tag for invalidation
-);
+export async function getCachedRecipes(): Promise<Recipe[]> {
+  'use cache'
+  cacheTag('recipes')
+  cacheLife({ revalidate: 3600 })
+  return getRecipes()
+}
 
-export const getCachedRecipe = unstable_cache(
-  getRecipe,
-  ['recipe'],
-  { tags: ['recipes'] }
-);
+export async function getCachedRecipe(id: string): Promise<Recipe | null> {
+  'use cache'
+  cacheTag('recipes')
+  cacheLife({ revalidate: 86400 })
+  return getRecipe(id)
+}
 
-export const getCachedFeaturedRecipes = unstable_cache(
-  getFeaturedRecipes,
-  ['featured-recipes'],
-  { tags: ['recipes'] }
-);
+export async function getCachedFeaturedRecipes(): Promise<Recipe[]> {
+  'use cache'
+  cacheTag('recipes')
+  cacheLife({ revalidate: 3600 })
+  return getFeaturedRecipes()
+}
 ```
 
-**Strategy:** All recipe queries share the `'recipes'` tag, enabling targeted invalidation.
+**Strategy:** All recipe queries share the `'recipes'` tag via `cacheTag()`, enabling targeted invalidation with `revalidateTag()`. The `cacheLife()` function sets revalidation intervals as a fallback.
 
 ### On-Demand Revalidation
 
@@ -314,18 +317,17 @@ This triggers the `not-found.tsx` page with proper 404 status code.
 
 ## 6. API & Server Actions
 
-### Route Handler with Edge Runtime
+### Route Handler with Streaming
 
 **Location:** `app/api/ingest/route.ts`
 
 ```tsx
-export const runtime = 'edge'; // Run on edge network
-
+// Node.js runtime with streaming support
 export async function POST(req: Request) {
   const { url } = await req.json();
   // Fetch recipe page, extract with AI
   const result = streamObject({
-    model: openai('gpt-4o-mini'),
+    model: gateway('openai:gpt-4o-mini'),
     schema: RecipeSchema,
     prompt: `Extract a recipe...`,
   });
@@ -333,10 +335,10 @@ export async function POST(req: Request) {
 }
 ```
 
-**Why Edge Runtime:**
-- Lower latency (runs closer to user)
-- Streaming response support
-- Cost-effective for AI streaming
+**Why Node.js Runtime:**
+- Full Node.js API support
+- Streaming response support for AI
+- Compatible with `cacheComponents` configuration
 
 ### Server Actions
 
@@ -555,26 +557,15 @@ app/
 
 ### 8.7 ISR with Time-Based Revalidation
 
-**Current:** Only on-demand revalidation via `revalidateTag`.
-
-**Opportunity:** Add time-based revalidation:
+**Current:** ✅ Implemented with `cacheLife()` in all cached functions.
 
 ```tsx
-// app/recipes/page.tsx
-export const revalidate = 3600; // Revalidate every hour
-```
-
-Or in cache config:
-
-```tsx
-export const getCachedRecipes = unstable_cache(
-  getRecipes,
-  ['recipes'],
-  { 
-    tags: ['recipes'],
-    revalidate: 3600  // Also refresh hourly
-  }
-);
+export async function getCachedRecipes(): Promise<Recipe[]> {
+  'use cache'
+  cacheTag('recipes')
+  cacheLife({ revalidate: 3600 })  // Hourly revalidation
+  return getRecipes()
+}
 ```
 
 **Business Impact:** Ensures content freshness even if on-demand revalidation fails.
@@ -600,28 +591,29 @@ const nextConfig = {
 
 ---
 
-### 8.9 Middleware for Protection/Analytics
+### 8.9 Proxy for Protection/Analytics
 
-**Current:** No middleware.
-
-**Opportunity:** Add rate limiting, analytics, or auth checks:
+**Current:** ✅ Implemented with rate limiting in `proxy.ts`.
 
 ```tsx
-// middleware.ts
+// proxy.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-export function middleware(request: NextRequest) {
-  // Add request timing header
-  const response = NextResponse.next();
-  response.headers.set('x-request-time', Date.now().toString());
-  return response;
+export function proxy(request: NextRequest) {
+  // Rate limiting for the ingest API
+  if (!request.nextUrl.pathname.startsWith('/api/ingest')) {
+    return NextResponse.next();
+  }
+  // ... rate limit logic
 }
 
 export const config = {
-  matcher: '/api/:path*',
+  matcher: '/api/ingest',
 };
 ```
+
+**Note:** The `middleware.ts` convention was renamed to `proxy.ts` in Next.js 16 to clarify its network boundary purpose.
 
 ---
 
@@ -674,10 +666,10 @@ export async function GET() {
 
 1. **Clean Server/Client Component split** - Interactive components (`AddRecipeForm`, `RecipeGraph`) are clients; everything else stays on server
 2. **Parallel data fetching** - Home page fetches featured recipes and count simultaneously
-3. **Robust caching strategy** - `unstable_cache` with tags + on-demand revalidation
+3. **Robust caching strategy** - `'use cache'` directive with `cacheTag` + on-demand revalidation
 4. **Loading states** - Every route has a loading.tsx skeleton
 5. **Server Actions** - Type-safe mutations with built-in revalidation
-6. **Edge Runtime** - AI streaming handler runs at the edge
+6. **Streaming API Routes** - AI streaming handler with Node.js runtime
 
 ### Key Interview Talking Points
 
@@ -685,7 +677,7 @@ export async function GET() {
    → ReactFlow requires DOM APIs. The graph is interactive (zoom, pan). Dagre layout runs client-side.
 
 2. **"How does caching work?"**  
-   → `unstable_cache` wraps KV calls with `'recipes'` tag. On save/delete, `revalidateTag('recipes')` purges all recipe caches atomically.
+   → The `'use cache'` directive with `cacheTag('recipes')` marks functions as cacheable. On save/delete, `revalidateTag('recipes')` purges all recipe caches atomically.
 
 3. **"What happens when a new recipe is added?"**  
    → Server Action saves to KV → `revalidateTag` clears cache → Next.js regenerates affected pages on next request.

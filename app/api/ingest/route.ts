@@ -2,7 +2,8 @@ import { streamObject } from 'ai';
 import { gateway } from '@ai-sdk/gateway';
 import { RecipeSchema } from '@/lib/schemas';
 
-export const runtime = 'edge';
+// Note: Edge runtime removed as it's incompatible with cacheComponents.
+// Node.js runtime still provides good streaming performance.
 
 export async function POST(req: Request) {
   try {

@@ -38,12 +38,13 @@ A Next.js application demonstrating modern React Server Components, streaming AI
 ### Data Fetching & Caching
 
 ```typescript
-// Tag-based caching for instant updates
-export const getCachedRecipes = unstable_cache(
-  getRecipes,
-  ['recipes'],
-  { tags: ['recipes'] }
-);
+// Tag-based caching with 'use cache' directive
+export async function getCachedRecipes(): Promise<Recipe[]> {
+  'use cache'
+  cacheTag('recipes')
+  cacheLife({ revalidate: 3600 })
+  return getRecipes()
+}
 
 // On-demand revalidation when saving
 revalidateTag('recipes');
@@ -73,15 +74,19 @@ const { object, submit, isLoading } = useObject({
 - AI streaming shows progressive results
 - Better UX than spinners
 
-### Edge Runtime for AI
+### API Route for AI Streaming
 
 ```typescript
 // app/api/ingest/route.ts
-export const runtime = 'edge';
+// Node.js runtime with streaming support
+export async function POST(req: Request) {
+  const result = streamObject({...});
+  return result.toTextStreamResponse();
+}
 ```
 
-- Lower latency for URL fetch + AI call
 - Server-side fetch avoids CORS issues
+- Streaming response for progressive UI updates
 
 ## Project Structure
 
@@ -168,9 +173,9 @@ npm start
 2. **Client Components** - Only for interactive features (`'use client'`)
 3. **Streaming** - AI SDK `streamObject` for progressive UI
 4. **Suspense** - Isolate loading states, improve perceived performance
-5. **Caching** - `unstable_cache` with tags for fine-grained invalidation
+5. **Caching** - `'use cache'` directive with `cacheTag` for fine-grained invalidation
 6. **Server Actions** - Mutations with `revalidateTag`/`revalidatePath`
-7. **Edge Runtime** - API route for lower latency
+7. **Streaming API Routes** - Server actions for AI streaming
 8. **generateStaticParams** - Pre-render known recipes
 9. **Metadata API** - Dynamic SEO metadata per page
 10. **Loading UI** - `loading.tsx` for route transitions
@@ -181,7 +186,7 @@ npm start
 |----------|---------|----------|
 | Server-first rendering | Lower TTI, smaller bundles | Initial server request |
 | Tag-based caching | Fast reads, instant invalidation | Complexity vs time-based |
-| Edge API route | Lower latency globally | Limited Node.js APIs |
+| Node.js API route | Full Node.js APIs | Slightly higher latency than edge |
 | React Flow (client) | Rich interactivity | ~100KB client JS |
 | In-memory fallback | Works without KV | Not persistent |
 

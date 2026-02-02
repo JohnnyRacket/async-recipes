@@ -18,7 +18,7 @@ function cleanupOldEntries() {
   }
 }
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   // Only rate limit the ingest API
   if (!request.nextUrl.pathname.startsWith('/api/ingest')) {
     return NextResponse.next();
