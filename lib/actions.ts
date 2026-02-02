@@ -43,6 +43,7 @@ export async function saveRecipeAction(
       title: input.title.trim(),
       description: input.description?.trim() || '',
       sourceUrl: input.sourceUrl,
+      imageUrl: input.imageUrl,
       ingredients: input.ingredients || [],
       steps: input.steps.map((step, index) => ({
         id: step.id || `step${index + 1}`,

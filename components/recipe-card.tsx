@@ -1,10 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { RecipeImage } from '@/components/recipe-image';
 import { Recipe } from '@/lib/types';
 
 interface RecipeCardProps {
@@ -52,20 +52,16 @@ export function RecipeCard({ recipe, previewMode = false }: RecipeCardProps) {
       href={getRecipeUrl()}
       onClick={handleClick}
     >
-      <Card className={`h-full hover:shadow-lg transition-all cursor-pointer overflow-hidden ${
+      <Card className={`h-full hover:shadow-lg transition-all cursor-pointer overflow-hidden pt-0 ${
         isActive && previewMode ? 'ring-2 ring-primary shadow-lg' : ''
       }`}>
-        {recipe.imageUrl && (
-          <div className="relative w-full h-48">
-            <Image
-              src={recipe.imageUrl}
-              alt={recipe.title}
-              fill
-              className="object-cover"
-              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            />
-          </div>
-        )}
+        <div className="relative w-full h-48">
+          <RecipeImage
+            src={recipe.imageUrl}
+            alt={recipe.title}
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+          />
+        </div>
         <CardHeader>
           <CardTitle className="line-clamp-1">{recipe.title}</CardTitle>
           <CardDescription className="line-clamp-2">

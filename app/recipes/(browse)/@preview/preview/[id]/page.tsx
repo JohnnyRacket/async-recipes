@@ -1,10 +1,10 @@
 import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
 import { getCachedRecipe } from '@/lib/kv';
 import { RecipeGraph } from '@/components/recipe-graph';
 import { GraphSkeleton } from '@/components/graph-skeleton';
+import { RecipeImage } from '@/components/recipe-image';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -25,19 +25,15 @@ export default async function RecipePreviewPage({ params }: PreviewPageProps) {
   const parallelSteps = recipe.steps.filter((s) => s.dependsOn.length === 0).length;
 
   return (
-    <Card className="overflow-hidden">
+    <Card className="overflow-hidden pt-0">
       {/* Hero Image */}
-      {recipe.imageUrl && (
-        <div className="relative w-full h-48">
-          <Image
-            src={recipe.imageUrl}
-            alt={recipe.title}
-            fill
-            className="object-cover"
-            sizes="420px"
-          />
-        </div>
-      )}
+      <div className="relative w-full h-48">
+        <RecipeImage
+          src={recipe.imageUrl}
+          alt={recipe.title}
+          sizes="420px"
+        />
+      </div>
 
       <CardHeader className="pb-3">
         <div className="flex gap-2 mb-2">
