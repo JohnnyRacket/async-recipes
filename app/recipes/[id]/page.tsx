@@ -8,7 +8,6 @@ import { StepsList } from '@/components/steps-list';
 import { InteractiveRecipe } from '@/components/interactive-recipe';
 import { GraphSkeleton } from '@/components/graph-skeleton';
 import { RecipeImage } from '@/components/recipe-image';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
 interface RecipePageProps {
@@ -29,11 +28,11 @@ export async function generateMetadata({ params }: RecipePageProps): Promise<Met
   const recipe = await getCachedRecipe(id);
   
   if (!recipe) {
-    return { title: 'Recipe Not Found | Async Recipes' };
+    return { title: 'Recipe Not Found | Forked Recipes' };
   }
 
   return {
-    title: `${recipe.title} | Async Recipes`,
+    title: `${recipe.title} | Forked Recipes`,
     description: recipe.description,
   };
 }
@@ -70,28 +69,39 @@ export default async function RecipePage({ params }: RecipePageProps) {
           />
         </div>
         
-        <div className="space-y-2">
+        <div className="space-y-3">
           <h1 className="text-3xl font-bold tracking-tight">{recipe.title}</h1>
           <p className="text-lg text-muted-foreground">{recipe.description}</p>
-          <div className="flex flex-wrap gap-2 pt-2">
-            <Badge variant="secondary">{recipe.steps.length} steps</Badge>
-            <Badge variant="secondary">{recipe.ingredients.length} ingredients</Badge>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-2 text-sm">
+            <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+              <StepsIcon className="w-4 h-4 text-blue-500" />
+              <span>{recipe.steps.length} steps</span>
+            </span>
+            <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+              <IngredientsIcon className="w-4 h-4 text-green-500" />
+              <span>{recipe.ingredients.length} ingredients</span>
+            </span>
             {totalTime > 0 && (
-              <Badge variant="secondary">~{totalTime} min total</Badge>
+              <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                <ClockIcon className="w-4 h-4 text-orange-500" />
+                <span>~{totalTime} min total</span>
+              </span>
             )}
             {parallelSteps > 1 && (
-              <Badge variant="default" className="bg-green-600">
-                {parallelSteps} steps can start in parallel
-              </Badge>
+              <span className="inline-flex items-center gap-1.5 text-amber-600 font-medium">
+                <ParallelIcon className="w-4 h-4" />
+                <span>{parallelSteps} steps can start in parallel</span>
+              </span>
             )}
             {recipe.sourceUrl && (
               <a 
                 href={recipe.sourceUrl} 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
               >
-                View source →
+                <LinkIcon className="w-4 h-4" />
+                <span>View source</span>
               </a>
             )}
           </div>
@@ -116,5 +126,47 @@ export default async function RecipePage({ params }: RecipePageProps) {
         <InteractiveRecipe recipe={recipe} />
       </Suspense>
     </div>
+  );
+}
+
+// Icon components
+function StepsIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+    </svg>
+  );
+}
+
+function IngredientsIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+    </svg>
+  );
+}
+
+function ClockIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="10" strokeWidth="2" />
+      <path strokeWidth="2" strokeLinecap="round" d="M12 6v6l4 2" />
+    </svg>
+  );
+}
+
+function ParallelIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+    </svg>
+  );
+}
+
+function LinkIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+    </svg>
   );
 }

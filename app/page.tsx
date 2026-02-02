@@ -1,12 +1,12 @@
 import Link from 'next/link';
-import { getCachedFeaturedRecipes, getRecipeCount } from '@/lib/kv';
+import { getCachedRecentRecipes, getRecipeCount } from '@/lib/kv';
 import { RecipeGrid } from '@/components/recipe-grid';
 import { Button } from '@/components/ui/button';
 
 export default async function Home() {
   // Parallel data fetching - both requests run simultaneously
-  const [featuredRecipes, totalCount] = await Promise.all([
-    getCachedFeaturedRecipes(),
+  const [recentRecipes, totalCount] = await Promise.all([
+    getCachedRecentRecipes(3),
     getRecipeCount(),
   ]);
 
@@ -15,10 +15,10 @@ export default async function Home() {
       {/* Hero Section */}
       <section className="text-center py-12 space-y-4">
         <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
-          Async Recipes
+          🍴 Forked Recipes
         </h1>
         <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-          Recipes for engineers: visualize cooking as a dependency graph to maximize parallelism.
+          Recipes for engineers: visualize cooking as a dependency graph to maximize parallelism and share your favorite dishes.
         </p>
         <div className="flex justify-center gap-4 pt-4">
           <Button asChild size="lg">
@@ -26,19 +26,19 @@ export default async function Home() {
               Browse {totalCount} Recipes
             </Link>
           </Button>
-          <Button asChild variant="outline" size="lg">
+          <Button asChild size="lg" className="bg-gradient-to-r from-orange-500 to-amber-400 hover:from-orange-600 hover:to-amber-500 shadow-md">
             <Link href="/add">
-              Add from URL
+              ✨ Fork a Recipe
             </Link>
           </Button>
         </div>
       </section>
 
-      {/* Featured Recipes */}
+      {/* Recently Forked Recipes */}
       <section className="space-y-6">
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-semibold tracking-tight">
-            Featured Recipes
+            🍴 Recently Forked
           </h2>
           <Link 
             href="/recipes" 
@@ -47,35 +47,55 @@ export default async function Home() {
             View all →
           </Link>
         </div>
-        <RecipeGrid recipes={featuredRecipes} />
+        <RecipeGrid recipes={recentRecipes} />
       </section>
 
       {/* How It Works */}
-      <section className="space-y-6 py-8 border-t">
-        <h2 className="text-2xl font-semibold tracking-tight text-center">
-          How It Works
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
-          <div className="space-y-2">
-            <div className="text-4xl">📊</div>
-            <h3 className="font-semibold">Dependency Graph</h3>
-            <p className="text-sm text-muted-foreground">
-              Each recipe shows which steps depend on others, visualized as an interactive graph.
-            </p>
+      <section className="space-y-8 py-12 border-t">
+        <div className="text-center space-y-2">
+          <h2 className="text-2xl font-semibold tracking-tight">
+            How It Works
+          </h2>
+          <p className="text-muted-foreground max-w-xl mx-auto">
+            Fork any recipe in one click. Our AI does the heavy lifting so you can cook smarter.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="relative group">
+            <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 to-amber-500/10 rounded-2xl transform group-hover:scale-105 transition-transform" />
+            <div className="relative p-6 space-y-3">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-amber-400 flex items-center justify-center text-2xl shadow-lg">
+                🔗
+              </div>
+              <h3 className="font-semibold text-lg">1. Paste Any Recipe URL</h3>
+              <p className="text-sm text-muted-foreground">
+                Found a recipe you love? Just copy the link from any cooking website.
+              </p>
+            </div>
           </div>
-          <div className="space-y-2">
-            <div className="text-4xl">⚡</div>
-            <h3 className="font-semibold">Parallel Steps</h3>
-            <p className="text-sm text-muted-foreground">
-              Identify which tasks can run in parallel to cook more efficiently.
-            </p>
+          <div className="relative group">
+            <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 to-amber-500/10 rounded-2xl transform group-hover:scale-105 transition-transform" />
+            <div className="relative p-6 space-y-3">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-amber-400 flex items-center justify-center text-2xl shadow-lg">
+                ✨
+              </div>
+              <h3 className="font-semibold text-lg">2. One Click to Fork</h3>
+              <p className="text-sm text-muted-foreground">
+                Hit the button and watch AI extract ingredients, steps, timing, and build your dependency graph instantly.
+              </p>
+            </div>
           </div>
-          <div className="space-y-2">
-            <div className="text-4xl">🤖</div>
-            <h3 className="font-semibold">AI Extraction</h3>
-            <p className="text-sm text-muted-foreground">
-              Paste any recipe URL and AI extracts the steps with dependency analysis.
-            </p>
+          <div className="relative group">
+            <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 to-amber-500/10 rounded-2xl transform group-hover:scale-105 transition-transform" />
+            <div className="relative p-6 space-y-3">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-amber-400 flex items-center justify-center text-2xl shadow-lg">
+                ⚡
+              </div>
+              <h3 className="font-semibold text-lg">3. Cook in Parallel</h3>
+              <p className="text-sm text-muted-foreground">
+                See which tasks can run simultaneously. Prep veggies while the oven preheats!
+              </p>
+            </div>
           </div>
         </div>
       </section>

@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { RecipeImage } from '@/components/recipe-image';
 import { Recipe } from '@/lib/types';
 
@@ -20,6 +19,9 @@ export function RecipeCard({ recipe, previewMode = false }: RecipeCardProps) {
   
   // Count how many steps can start immediately (no dependencies)
   const parallelSteps = recipe.steps.filter((s) => s.dependsOn.length === 0).length;
+  
+  // Calculate total time
+  const totalTime = recipe.steps.reduce((sum, step) => sum + (step.duration || 0), 0);
 
   // Check if this recipe is currently being previewed
   const isActive = pathname === `/recipes/preview/${recipe.id}`;
@@ -69,21 +71,63 @@ export function RecipeCard({ recipe, previewMode = false }: RecipeCardProps) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-wrap gap-2">
-            <Badge variant="secondary">
-              {recipe.steps.length} steps
-            </Badge>
-            <Badge variant="outline">
-              {recipe.ingredients.length} ingredients
-            </Badge>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5">
+              <StepsIcon className="w-4 h-4 text-blue-500" />
+              <span>{recipe.steps.length} steps</span>
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <IngredientsIcon className="w-4 h-4 text-green-500" />
+              <span>{recipe.ingredients.length} ingredients</span>
+            </span>
+            {totalTime > 0 && (
+              <span className="inline-flex items-center gap-1.5">
+                <ClockIcon className="w-4 h-4 text-orange-500" />
+                <span>{totalTime} min</span>
+              </span>
+            )}
             {parallelSteps > 1 && (
-              <Badge variant="default" className="bg-green-600 hover:bg-green-700">
-                {parallelSteps} parallel starts
-              </Badge>
+              <span className="inline-flex items-center gap-1.5 text-amber-600 font-medium">
+                <ParallelIcon className="w-4 h-4" />
+                <span>{parallelSteps} parallel</span>
+              </span>
             )}
           </div>
         </CardContent>
       </Card>
     </Link>
+  );
+}
+
+function StepsIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+    </svg>
+  );
+}
+
+function IngredientsIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+    </svg>
+  );
+}
+
+function ClockIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="10" strokeWidth="2" />
+      <path strokeWidth="2" strokeLinecap="round" d="M12 6v6l4 2" />
+    </svg>
+  );
+}
+
+function ParallelIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+    </svg>
   );
 }

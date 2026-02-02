@@ -111,6 +111,20 @@ export async function getCachedFeaturedRecipes(): Promise<Recipe[]> {
   return getFeaturedRecipes()
 }
 
+// Get most recent recipes
+export async function getRecentRecipes(limit: number = 3): Promise<Recipe[]> {
+  const recipes = await getRecipes();
+  return recipes.slice(0, limit);
+}
+
+// Cached version for Server Components
+export async function getCachedRecentRecipes(limit: number = 3): Promise<Recipe[]> {
+  'use cache'
+  cacheTag('recipes')
+  cacheLife({ revalidate: 3600 })
+  return getRecentRecipes(limit)
+}
+
 // Get recipe count
 export async function getRecipeCount(): Promise<number> {
   await initializeStore();

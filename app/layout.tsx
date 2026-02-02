@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Async Recipes",
-  description: "Recipes for engineers: visualize cooking as a dependency graph to maximize parallelism.",
+  title: "Forked Recipes",
+  description: "Recipes for engineers: visualize cooking as a dependency graph to maximize parallelism and share your favorite dishes.",
 };
 
 export default function RootLayout({
