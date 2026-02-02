@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { getCachedRecipe, getCachedRecipes } from '@/lib/kv';
 import { IngredientsList } from '@/components/ingredients-list';
 import { StepsList } from '@/components/steps-list';
-import { RecipeGraph } from '@/components/recipe-graph';
+import { InteractiveRecipe } from '@/components/interactive-recipe';
 import { GraphSkeleton } from '@/components/graph-skeleton';
 import { RecipeImage } from '@/components/recipe-image';
 import { Badge } from '@/components/ui/badge';
@@ -48,6 +48,9 @@ export default async function RecipePage({ params }: RecipePageProps) {
 
   // Count parallel steps (no dependencies)
   const parallelSteps = recipe.steps.filter((s) => s.dependsOn.length === 0).length;
+  
+  // Calculate total estimated time
+  const totalTime = recipe.steps.reduce((sum, step) => sum + (step.duration || 0), 0);
 
   return (
     <div className="space-y-8">
@@ -73,6 +76,9 @@ export default async function RecipePage({ params }: RecipePageProps) {
           <div className="flex flex-wrap gap-2 pt-2">
             <Badge variant="secondary">{recipe.steps.length} steps</Badge>
             <Badge variant="secondary">{recipe.ingredients.length} ingredients</Badge>
+            {totalTime > 0 && (
+              <Badge variant="secondary">~{totalTime} min total</Badge>
+            )}
             {parallelSteps > 1 && (
               <Badge variant="default" className="bg-green-600">
                 {parallelSteps} steps can start in parallel
@@ -101,13 +107,13 @@ export default async function RecipePage({ params }: RecipePageProps) {
 
         {/* Steps - Main content */}
         <div className="lg:col-span-2">
-          <StepsList steps={recipe.steps} />
+          <StepsList steps={recipe.steps} ingredientCategories={recipe.ingredientCategories} />
         </div>
       </div>
 
-      {/* Dependency Graph - Full width with Suspense boundary */}
+      {/* Interactive Dependency Graph - Full width with Suspense boundary */}
       <Suspense fallback={<GraphSkeleton />}>
-        <RecipeGraph steps={recipe.steps} />
+        <InteractiveRecipe recipe={recipe} />
       </Suspense>
     </div>
   );

@@ -89,7 +89,7 @@ export default async function RecipePreviewPage({ params }: PreviewPageProps) {
           <h4 className="font-semibold text-sm mb-2">Dependency Graph</h4>
           <div className="h-[250px] -mx-2">
             <Suspense fallback={<GraphSkeleton compact />}>
-              <RecipeGraph steps={recipe.steps} compact />
+              <RecipeGraph steps={recipe.steps} ingredientCategories={recipe.ingredientCategories} compact />
             </Suspense>
           </div>
         </div>

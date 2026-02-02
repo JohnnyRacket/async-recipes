@@ -9,8 +9,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
-import { RecipeSchema, RecipeInput } from '@/lib/schemas';
+import { RecipeSchema } from '@/lib/schemas';
 import { saveRecipeAction } from '@/lib/actions';
+import { getIngredientColors } from '@/lib/utils';
+import type { IngredientCategory } from '@/lib/types';
 
 export function AddRecipeForm() {
   const router = useRouter();
@@ -37,20 +39,35 @@ export function AddRecipeForm() {
         // Filter out any undefined values from streaming partial objects
         const ingredients = (object.ingredients || []).filter((i): i is string => i !== undefined);
         const steps = (object.steps || [])
-          .filter((s): s is { id: string; text: string; dependsOn: string[] } => 
+          .filter((s): s is NonNullable<typeof s> & { id: string; text: string } => 
             s !== undefined && s.id !== undefined && s.text !== undefined
           )
           .map(s => ({
             id: s.id,
             text: s.text,
             dependsOn: (s.dependsOn || []).filter((d): d is string => d !== undefined),
+            // Preserve the new metadata fields
+            duration: s.duration,
+            isPassive: s.isPassive,
+            ingredients: s.ingredients?.filter((i): i is string => i !== undefined),
+            temperature: s.temperature,
           }));
+
+        // Clean up ingredientCategories (filter out undefined values from streaming)
+        const ingredientCategories = object.ingredientCategories 
+          ? Object.fromEntries(
+              Object.entries(object.ingredientCategories).filter(
+                ([k, v]) => k !== undefined && v !== undefined
+              )
+            ) as Record<string, IngredientCategory>
+          : undefined;
 
         const result = await saveRecipeAction({
           title: object.title!,
           description: object.description || '',
           imageUrl: object.imageUrl,
           ingredients,
+          ingredientCategories,
           steps,
           sourceUrl: url,
         });
@@ -214,28 +231,67 @@ export function AddRecipeForm() {
                         <span className="flex-shrink-0 w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-medium">
                           {i + 1}
                         </span>
-                        <div className="flex-1 space-y-1">
+                        <div className="flex-1 space-y-2">
                           <p className="text-sm">{step.text}</p>
-                          <div className="flex gap-1">
+                          
+                          {/* Compact metadata row */}
+                          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted-foreground">
+                            {step.duration && (
+                              <span className="inline-flex items-center gap-1">
+                                <ClockIcon className="w-3 h-3" />
+                                {step.duration} min
+                              </span>
+                            )}
+                            {step.temperature && (
+                              <span className="inline-flex items-center gap-1 text-orange-600">
+                                <ThermometerIcon className="w-3 h-3" />
+                                {step.temperature}
+                              </span>
+                            )}
+                            {step.isPassive && (
+                              <span className="text-blue-600">Passive</span>
+                            )}
+                            {(step.duration || step.temperature || step.isPassive) && (
+                              <span className="text-border">|</span>
+                            )}
                             {!step.dependsOn?.length ? (
-                              <Badge variant="outline" className="text-xs text-green-600 border-green-600">
-                                Can start immediately
-                              </Badge>
+                              <span className="text-green-600 font-medium">Start anytime</span>
                             ) : (
-                              <>
-                                <span className="text-xs text-muted-foreground">Requires:</span>
-                                {step.dependsOn.map((dep) => {
+                              <span className="inline-flex items-center gap-1">
+                                <span className="bg-foreground text-background px-1.5 py-0.5 rounded text-[10px] font-medium">
+                                  After
+                                </span>
+                                {step.dependsOn.filter(Boolean).map((dep, idx) => {
                                   if (!dep) return null;
                                   const depIndex = object.steps?.findIndex((s) => s?.id === dep);
                                   return (
-                                    <Badge key={dep} variant="secondary" className="text-xs">
+                                    <span key={dep} className="font-medium text-foreground">
+                                      {idx > 0 && ', '}
                                       Step {depIndex !== undefined && depIndex >= 0 ? depIndex + 1 : dep}
-                                    </Badge>
+                                    </span>
                                   );
                                 })}
-                              </>
+                              </span>
                             )}
                           </div>
+
+                          {/* Ingredient tags with color coding */}
+                          {step.ingredients && step.ingredients.filter(Boolean).length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              {step.ingredients.filter(Boolean).map((ing, idx) => {
+                                if (!ing) return null;
+                                const colors = getIngredientColors(ing, object?.ingredientCategories as Record<string, IngredientCategory> | undefined);
+                                return (
+                                  <span
+                                    key={idx}
+                                    className={`text-[10px] px-1.5 py-0.5 rounded ${colors.bg} ${colors.text}`}
+                                  >
+                                    {ing}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
                       </li>
                     );
@@ -277,5 +333,23 @@ export function AddRecipeForm() {
         </Card>
       )}
     </div>
+  );
+}
+
+// Compact icon components for step metadata
+function ClockIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="10" strokeWidth="2" />
+      <path strokeWidth="2" strokeLinecap="round" d="M12 6v6l4 2" />
+    </svg>
+  );
+}
+
+function ThermometerIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z" />
+    </svg>
   );
 }

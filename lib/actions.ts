@@ -45,10 +45,16 @@ export async function saveRecipeAction(
       sourceUrl: input.sourceUrl,
       imageUrl: input.imageUrl,
       ingredients: input.ingredients || [],
+      ingredientCategories: input.ingredientCategories,
       steps: input.steps.map((step, index) => ({
         id: step.id || `step${index + 1}`,
         text: step.text,
         dependsOn: step.dependsOn || [],
+        // Preserve the new metadata fields
+        duration: step.duration,
+        isPassive: step.isPassive,
+        ingredients: step.ingredients,
+        temperature: step.temperature,
       })),
       createdAt: Date.now(),
       featured: false,
