@@ -1,6 +1,6 @@
 import { streamObject } from 'ai';
 import { gateway } from '@ai-sdk/gateway';
-import { RecipeSchema } from '@/lib/schemas';
+import { IngestResultSchema } from '@/lib/schemas';
 
 // Note: Edge runtime removed as it's incompatible with cacheComponents.
 // Node.js runtime still provides good streaming performance.
@@ -51,11 +51,18 @@ export async function POST(req: Request) {
       .trim()
       .slice(0, 15000); // Limit to avoid token limits
 
-    // Use AI SDK to stream structured recipe extraction
+    // Use AI SDK to stream structured recipe extraction with validation
     const result = streamObject({
       model: gateway('openai/gpt-oss-20b'),
-      schema: RecipeSchema,
-      prompt: `Extract a recipe from the following webpage content. 
+      schema: IngestResultSchema,
+      prompt: `Analyze the following webpage and extract a recipe if one exists.
+
+FIRST: Determine if this page contains a legitimate cooking/food recipe.
+- Set isValidRecipe=true if it's a real recipe with ingredients and cooking instructions
+- Set isValidRecipe=false if it's: spam, gibberish, a product page, non-cooking instructions, a joke submission, or missing key recipe elements (no ingredients or no cooking steps)
+- If isValidRecipe=false, provide invalidReason explaining why (e.g., "Page contains a product listing, not a recipe", "Content is unrelated to cooking", "No cooking instructions found")
+
+ONLY if isValidRecipe=true, extract the recipe data into the "recipe" field:
 
 INGREDIENTS LIST: Extract the FULL ingredient list with exact quantities and measurements as written in the recipe. 
 - Include the amount, unit, and ingredient name (e.g., "2 cups all-purpose flour", "1 lb chicken breast", "3 cloves garlic, minced")
@@ -100,7 +107,7 @@ STEP METADATA - For each step, also extract:
 
 5. TEMPERATURE: Include cooking temp if mentioned (e.g., "375°F", "medium-high heat", "350°F (175°C)")
 
-rINGREDIENT CATEGORIES: Create an ingredientCategories object that maps each unique short ingredient name (used in steps) to one of these categories:
+INGREDIENT CATEGORIES: Create an ingredientCategories object that maps each unique short ingredient name (used in steps) to one of these categories:
 - "meat": beef, chicken, pork, steak, bacon, pancetta, lamb, turkey, sausage, ham, prosciutto
 - "seafood": fish, salmon, shrimp, tuna, cod, lobster, crab, scallop, mussel, clam, anchovy
 - "vegetable": onion, garlic, tomato, pepper, carrot, celery, potato, broccoli, spinach, lettuce, mushroom, asparagus, peas, beans, corn, cabbage, kale, ginger

@@ -137,6 +137,15 @@ export async function getRecipeCount(): Promise<number> {
   return ids?.length || 0;
 }
 
+// Cached version of getRecipeCount for Server Components
+// Uses the 'recipes' tag so it's invalidated when recipes are added/deleted
+export async function getCachedRecipeCount(): Promise<number> {
+  'use cache'
+  cacheTag('recipes')
+  cacheLife({ revalidate: 3600 })
+  return getRecipeCount()
+}
+
 // Save a recipe (used by server actions)
 export async function saveRecipe(recipe: Recipe): Promise<void> {
   await initializeStore();

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { getCachedRecentRecipes, getRecipeCount } from '@/lib/kv';
+import { getCachedRecentRecipes, getCachedRecipeCount } from '@/lib/kv';
 import { RecipeGrid } from '@/components/recipe-grid';
 import { Button } from '@/components/ui/button';
 
@@ -7,7 +7,7 @@ export default async function Home() {
   // Parallel data fetching - both requests run simultaneously
   const [recentRecipes, totalCount] = await Promise.all([
     getCachedRecentRecipes(3),
-    getRecipeCount(),
+    getCachedRecipeCount(),
   ]);
 
   return (

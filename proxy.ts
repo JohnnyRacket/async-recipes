@@ -18,9 +18,16 @@ function cleanupOldEntries() {
   }
 }
 
+// Paths that should be rate limited (AI endpoints that incur costs)
+const rateLimitedPaths = ['/api/ingest', '/api/enhance'];
+
 export function proxy(request: NextRequest) {
-  // Only rate limit the ingest API
-  if (!request.nextUrl.pathname.startsWith('/api/ingest')) {
+  // Only rate limit AI endpoints
+  const shouldRateLimit = rateLimitedPaths.some(path => 
+    request.nextUrl.pathname.startsWith(path)
+  );
+  
+  if (!shouldRateLimit) {
     return NextResponse.next();
   }
 
@@ -61,5 +68,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: '/api/ingest',
+  matcher: ['/api/ingest', '/api/enhance'],
 };

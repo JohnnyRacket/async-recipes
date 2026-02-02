@@ -1,5 +1,5 @@
 import { Metadata } from 'next';
-import { AddRecipeForm } from '@/components/add-recipe-form';
+import { AddRecipeFormWrapper } from '@/components/add-recipe-form';
 
 export const metadata: Metadata = {
   title: 'Fork a Recipe | Forked Recipes',
@@ -15,7 +15,7 @@ export default function AddPage() {
           Paste any recipe URL and our AI will extract the ingredients, steps, and analyze which steps can run in parallel.
         </p>
       </div>
-      <AddRecipeForm />
+      <AddRecipeFormWrapper />
     </div>
   );
 }

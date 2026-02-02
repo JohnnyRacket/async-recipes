@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useTransition, useEffect, useCallback } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import { experimental_useObject as useObject } from '@ai-sdk/react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -9,26 +9,111 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
-import { RecipeSchema } from '@/lib/schemas';
+import { RecipeSchema, IngestResultSchema } from '@/lib/schemas';
 import { saveRecipeAction } from '@/lib/actions';
 import { getIngredientColors } from '@/lib/utils';
 import type { IngredientCategory } from '@/lib/types';
 
-export function AddRecipeForm() {
+interface AddRecipeFormProps {
+  onReset?: () => void;
+}
+
+function AddRecipeForm({ onReset }: AddRecipeFormProps) {
   const router = useRouter();
   const [url, setUrl] = useState('');
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [isEnhanced, setIsEnhanced] = useState(false);
+  const [extractionFailed, setExtractionFailed] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
 
-  const { object, submit, isLoading, error, stop } = useObject({
+  // Initial extraction with validation
+  const { 
+    object: ingestResult, 
+    submit: submitExtract, 
+    isLoading: isExtracting, 
+    error: extractError, 
+    stop: stopExtract 
+  } = useObject({
     api: '/api/ingest',
+    schema: IngestResultSchema,
+  });
+
+  // Derive extracted recipe from ingest result
+  const extractedObject = ingestResult?.recipe;
+  
+  // Check for validation failure (AI determined content is not a valid recipe)
+  const isInvalidRecipe = !isExtracting && ingestResult?.isValidRecipe === false;
+  const invalidReason = ingestResult?.invalidReason;
+
+  // Enhancement pass
+  const { 
+    object: enhancedObject, 
+    submit: submitEnhance, 
+    isLoading: isEnhancing, 
+    error: enhanceError, 
+    stop: stopEnhance 
+  } = useObject({
+    api: '/api/enhance',
     schema: RecipeSchema,
   });
 
-  const handleExtract = () => {
+  // Use enhanced object if available, otherwise use extracted
+  const object = isEnhanced && enhancedObject ? enhancedObject : extractedObject;
+  const isLoading = isExtracting || isEnhancing;
+  const error = isEnhanced ? enhanceError : extractError;
+
+  // Detect extraction failure (completed but no useful data)
+  useEffect(() => {
+    if (!isExtracting && extractedObject !== undefined && !extractError) {
+      // Check if extraction completed but returned nothing useful
+      const hasUsefulData = extractedObject?.title || extractedObject?.steps?.length;
+      if (!hasUsefulData && url.trim()) {
+        setExtractionFailed(true);
+      } else {
+        setExtractionFailed(false);
+      }
+    }
+  }, [isExtracting, extractedObject, extractError, url]);
+
+  const handleReset = useCallback(() => {
+    // Call the onReset callback to regenerate the wrapper's key
+    // This will remount the form with fresh state
+    if (onReset) {
+      onReset();
+    }
+  }, [onReset]);
+
+  const handleExtract = useCallback(() => {
     if (!url.trim()) return;
     setSaveError(null);
-    submit({ url: url.trim() });
+    setIsEnhanced(false);
+    setExtractionFailed(false);
+    submitExtract({ url: url.trim() });
+  }, [url, submitExtract]);
+
+  const handleRetry = useCallback(() => {
+    if (!url.trim()) return;
+    setRetryCount(prev => prev + 1);
+    setExtractionFailed(false);
+    setSaveError(null);
+    setIsEnhanced(false);
+    submitExtract({ url: url.trim() });
+  }, [url, submitExtract]);
+
+  const handleEnhance = () => {
+    if (!url.trim() || !extractedObject) return;
+    setSaveError(null);
+    setIsEnhanced(true);
+    submitEnhance({ url: url.trim(), existingRecipe: extractedObject });
+  };
+
+  const handleStop = () => {
+    if (isEnhancing) {
+      stopEnhance();
+    } else {
+      stopExtract();
+    }
   };
 
   const handleSave = () => {
@@ -104,7 +189,7 @@ export function AddRecipeForm() {
               className="flex-1"
             />
             {isLoading ? (
-              <Button variant="outline" onClick={stop}>
+              <Button variant="outline" onClick={handleStop}>
                 Stop
               </Button>
             ) : (
@@ -114,9 +199,41 @@ export function AddRecipeForm() {
             )}
           </div>
           {error && (
-            <p className="text-sm text-destructive">
-              Error: {error.message || 'Failed to extract recipe'}
-            </p>
+            <div className="flex items-center justify-between bg-destructive/10 p-3 rounded-md">
+              <p className="text-sm text-destructive">
+                Error: {error.message || 'Failed to extract recipe'}
+              </p>
+              <Button variant="outline" size="sm" onClick={handleRetry}>
+                Retry
+              </Button>
+            </div>
+          )}
+          {extractionFailed && !error && !isInvalidRecipe && (
+            <div className="flex items-center justify-between bg-amber-100 dark:bg-amber-950 p-3 rounded-md">
+              <div>
+                <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                  Extraction returned no data
+                </p>
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  The AI couldn&apos;t extract a recipe from this page. This can happen with some websites.
+                  {retryCount > 0 && ` (Attempt ${retryCount + 1})`}
+                </p>
+              </div>
+              <Button variant="outline" size="sm" onClick={handleRetry} className="ml-4">
+                Retry
+              </Button>
+            </div>
+          )}
+          {isInvalidRecipe && (
+            <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
+              <p className="text-destructive font-medium">This doesn&apos;t appear to be a recipe</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {invalidReason || 'The page content could not be identified as a cooking recipe.'}
+              </p>
+              <Button variant="outline" size="sm" className="mt-3" onClick={handleRetry}>
+                Try Again
+              </Button>
+            </div>
           )}
           <p className="text-sm text-muted-foreground">
             Paste any recipe URL and our AI will extract the ingredients, steps, and analyze which steps can run in parallel.
@@ -125,7 +242,7 @@ export function AddRecipeForm() {
       </Card>
 
       {/* Streaming Results Section */}
-      {(isLoading || object) && (
+      {(isLoading || object) && !isInvalidRecipe && (
         <Card className="overflow-hidden pt-0">
           {/* Hero Image */}
           <div className="relative w-full h-56 bg-gradient-to-br from-orange-100 to-amber-50 dark:from-orange-950 dark:to-amber-900">
@@ -162,11 +279,23 @@ export function AddRecipeForm() {
               </div>
             )}
             {/* Status badge */}
-            <div className="absolute top-3 right-3">
+            <div className="absolute top-3 right-3 flex gap-2">
+              {!isLoading && (
+                <Button 
+                  variant="secondary" 
+                  size="sm" 
+                  onClick={handleReset}
+                  className="bg-white/90 dark:bg-black/70 hover:bg-white dark:hover:bg-black/90"
+                >
+                  Start Over
+                </Button>
+              )}
               {isLoading ? (
                 <Badge variant="secondary" className="animate-pulse bg-white/90 dark:bg-black/70">
-                  Extracting...
+                  {isEnhancing ? 'Enhancing...' : 'Extracting...'}
                 </Badge>
+              ) : isEnhanced ? (
+                <Badge className="bg-purple-600">Enhanced</Badge>
               ) : (
                 <Badge className="bg-green-600">Ready to save</Badge>
               )}
@@ -319,20 +448,34 @@ export function AddRecipeForm() {
               )}
             </div>
 
-            {/* Save Button */}
+            {/* Action Buttons */}
             {!isLoading && isComplete && (
               <>
                 <Separator />
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-4">
                   <p className="text-sm text-muted-foreground">
-                    Recipe extracted successfully. Save it to view the dependency graph.
+                    {isEnhanced 
+                      ? 'Recipe enhanced! Save it to view the dependency graph.'
+                      : 'Recipe extracted. Enhance to fill in missing details, or save now.'}
                   </p>
-                  <Button onClick={handleSave} disabled={isPending}>
-                    {isPending ? 'Saving...' : 'Save Recipe'}
-                  </Button>
+                  <div className="flex gap-2">
+                    {!isEnhanced && (
+                      <Button variant="outline" onClick={handleEnhance} disabled={isPending}>
+                        Enhance Recipe
+                      </Button>
+                    )}
+                    <Button onClick={handleSave} disabled={isPending}>
+                      {isPending ? 'Saving...' : 'Save Recipe'}
+                    </Button>
+                  </div>
                 </div>
                 {saveError && (
                   <p className="text-sm text-destructive">{saveError}</p>
+                )}
+                {enhanceError && (
+                  <p className="text-sm text-destructive">
+                    Enhancement failed: {enhanceError.message || 'Unknown error'}
+                  </p>
                 )}
               </>
             )}
@@ -370,4 +513,24 @@ function TimerIcon({ className }: { className?: string }) {
       <path strokeWidth="2" strokeLinecap="round" d="M12 2v2" />
     </svg>
   );
+}
+
+// Wrapper component that forces remount when navigating to the add page
+// This ensures the form is reset when returning from other pages
+export function AddRecipeFormWrapper() {
+  const pathname = usePathname();
+  const [mountKey, setMountKey] = useState(() => Date.now());
+
+  // Generate a new key when pathname changes to /add to force remount
+  useEffect(() => {
+    if (pathname === '/add') {
+      setMountKey(Date.now());
+    }
+  }, [pathname]);
+
+  const handleReset = useCallback(() => {
+    setMountKey(Date.now());
+  }, []);
+
+  return <AddRecipeForm key={mountKey} onReset={handleReset} />;
 }

@@ -33,3 +33,12 @@ export const RecipeSchema = z.object({
 });
 
 export type RecipeInput = z.infer<typeof RecipeSchema>;
+
+// Schema for ingest API response - includes validation before recipe extraction
+export const IngestResultSchema = z.object({
+  isValidRecipe: z.boolean().describe('True if the page contains a legitimate cooking/food recipe. False for non-recipe content, spam, gibberish, or non-cooking instructions.'),
+  invalidReason: z.string().optional().describe('If isValidRecipe is false, explain why (e.g., "Page contains a product listing, not a recipe", "Content is unrelated to cooking")'),
+  recipe: RecipeSchema.optional().describe('The extracted recipe data. Only populate if isValidRecipe is true.'),
+});
+
+export type IngestResult = z.infer<typeof IngestResultSchema>;
