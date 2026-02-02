@@ -7,6 +7,7 @@ export default function Loading() {
       {/* Header Skeleton */}
       <div className="space-y-4">
         <Skeleton className="h-8 w-32" />
+        <Skeleton className="w-full h-64 md:h-80 lg:h-96 rounded-lg" />
         <div className="space-y-2">
           <Skeleton className="h-9 w-64" />
           <Skeleton className="h-6 w-full max-w-xl" />

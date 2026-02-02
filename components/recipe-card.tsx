@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Recipe } from '@/lib/types';
@@ -13,7 +14,18 @@ export function RecipeCard({ recipe }: RecipeCardProps) {
   
   return (
     <Link href={`/recipes/${recipe.id}`}>
-      <Card className="h-full hover:shadow-lg transition-shadow cursor-pointer">
+      <Card className="h-full hover:shadow-lg transition-shadow cursor-pointer overflow-hidden">
+        {recipe.imageUrl && (
+          <div className="relative w-full h-48">
+            <Image
+              src={recipe.imageUrl}
+              alt={recipe.title}
+              fill
+              className="object-cover"
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            />
+          </div>
+        )}
         <CardHeader>
           <CardTitle className="line-clamp-1">{recipe.title}</CardTitle>
           <CardDescription className="line-clamp-2">

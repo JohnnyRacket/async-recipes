@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { getCachedRecipe, getCachedRecipes } from '@/lib/kv';
 import { IngredientsList } from '@/components/ingredients-list';
 import { StepsList } from '@/components/steps-list';
@@ -55,6 +56,21 @@ export default async function RecipePage({ params }: RecipePageProps) {
         <Button asChild variant="ghost" size="sm" className="-ml-2">
           <Link href="/recipes">← Back to recipes</Link>
         </Button>
+        
+        {/* Hero Image */}
+        {recipe.imageUrl && (
+          <div className="relative w-full h-64 md:h-80 lg:h-96 rounded-lg overflow-hidden">
+            <Image
+              src={recipe.imageUrl}
+              alt={recipe.title}
+              fill
+              className="object-cover"
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1200px"
+              priority
+            />
+          </div>
+        )}
+        
         <div className="space-y-2">
           <h1 className="text-3xl font-bold tracking-tight">{recipe.title}</h1>
           <p className="text-lg text-muted-foreground">{recipe.description}</p>

@@ -60,10 +60,11 @@ export async function getRecipes(): Promise<Recipe[]> {
 }
 
 // Cached version of getRecipes for Server Components
+// Revalidates hourly as fallback - new recipes may be added
 export const getCachedRecipes = unstable_cache(
   getRecipes,
   ['recipes'],
-  { tags: ['recipes'] }
+  { tags: ['recipes'], revalidate: 3600 }
 );
 
 // Get a single recipe by ID
@@ -78,10 +79,11 @@ export async function getRecipe(id: string): Promise<Recipe | null> {
 }
 
 // Cached version of getRecipe for Server Components
+// Revalidates daily - recipe content rarely changes after creation
 export const getCachedRecipe = unstable_cache(
   getRecipe,
   ['recipe'],
-  { tags: ['recipes'] }
+  { tags: ['recipes'], revalidate: 86400 }
 );
 
 // Get featured recipes
@@ -91,10 +93,11 @@ export async function getFeaturedRecipes(): Promise<Recipe[]> {
 }
 
 // Cached version for Server Components
+// Revalidates hourly as fallback
 export const getCachedFeaturedRecipes = unstable_cache(
   getFeaturedRecipes,
   ['featured-recipes'],
-  { tags: ['recipes'] }
+  { tags: ['recipes'], revalidate: 3600 }
 );
 
 // Get recipe count

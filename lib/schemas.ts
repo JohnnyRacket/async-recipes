@@ -9,6 +9,7 @@ export const RecipeStepSchema = z.object({
 export const RecipeSchema = z.object({
   title: z.string().describe('The name of the recipe'),
   description: z.string().describe('A brief description of the dish (1-2 sentences)'),
+  imageUrl: z.string().optional().describe('URL of the main recipe image if found on the page'),
   ingredients: z.array(z.string()).describe('List of ingredients with quantities'),
   steps: z.array(RecipeStepSchema).describe('Ordered cooking steps with dependency information for parallelization. Analyze which steps can run in parallel (e.g., prep work) vs which must wait for others (e.g., cannot add sauce until onions are sautéed).'),
 });

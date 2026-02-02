@@ -31,6 +31,16 @@ export async function POST(req: Request) {
 
     const html = await pageResponse.text();
 
+    // Extract potential image URLs before stripping HTML
+    const imageMatches = html.match(/<img[^>]+src=["']([^"']+)["'][^>]*>/gi) || [];
+    const imageUrls = imageMatches
+      .map((img) => {
+        const match = img.match(/src=["']([^"']+)["']/i);
+        return match ? match[1] : null;
+      })
+      .filter((url): url is string => url !== null && url.startsWith('http'))
+      .slice(0, 5); // Keep top 5 potential images
+
     // Strip HTML tags for cleaner input (basic cleanup)
     const textContent = html
       .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
@@ -59,6 +69,9 @@ Example dependency patterns:
 - Boiling water (step1) and chopping vegetables (step2) can happen in parallel: both have empty dependsOn
 - Adding pasta to boiling water (step3) depends on step1: dependsOn: ["step1"]
 - Combining prepped vegetables with cooked pasta (step4) depends on both: dependsOn: ["step2", "step3"]
+
+IMAGE: If any of these image URLs appears to be the main recipe photo (not an ad, logo, or unrelated image), include it as imageUrl:
+${imageUrls.join('\n')}
 
 Webpage content:
 ${textContent}`,
