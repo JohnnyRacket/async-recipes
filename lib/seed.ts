@@ -5,6 +5,7 @@ export const seedRecipes: Recipe[] = [
     id: 'pasta-carbonara',
     title: 'Pasta Carbonara',
     description: 'Classic Italian pasta with eggs, cheese, pancetta, and black pepper. Rich, creamy, and ready in 30 minutes.',
+    imageUrl: 'https://cdn.britannica.com/36/123536-050-95CB0C6E/Variety-fruits-vegetables.jpg',
     ingredients: [
       '400g spaghetti',
       '200g pancetta or guanciale, diced',
@@ -59,6 +60,7 @@ export const seedRecipes: Recipe[] = [
     id: 'fluffy-pancakes',
     title: 'Fluffy Buttermilk Pancakes',
     description: 'Light and fluffy pancakes with crispy edges. Perfect weekend breakfast.',
+    imageUrl: 'https://cdn.britannica.com/36/123536-050-95CB0C6E/Variety-fruits-vegetables.jpg',
     ingredients: [
       '2 cups all-purpose flour',
       '2 tbsp sugar',
@@ -116,6 +118,7 @@ export const seedRecipes: Recipe[] = [
     id: 'vegetable-stir-fry',
     title: 'Quick Vegetable Stir Fry',
     description: 'Colorful and healthy stir fry with crisp vegetables in a savory sauce. Ready in 20 minutes.',
+    imageUrl: 'https://cdn.britannica.com/36/123536-050-95CB0C6E/Variety-fruits-vegetables.jpg',
     ingredients: [
       '2 cups broccoli florets',
       '1 red bell pepper, sliced',
@@ -189,6 +192,7 @@ export const seedRecipes: Recipe[] = [
     id: 'chocolate-chip-cookies',
     title: 'Classic Chocolate Chip Cookies',
     description: 'Chewy centers with crispy edges. The perfect cookie for any occasion.',
+    imageUrl: 'https://cdn.britannica.com/36/123536-050-95CB0C6E/Variety-fruits-vegetables.jpg',
     ingredients: [
       '2 1/4 cups all-purpose flour',
       '1 tsp baking soda',

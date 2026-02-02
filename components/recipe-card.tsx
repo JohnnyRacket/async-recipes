@@ -1,20 +1,60 @@
+'use client';
+
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Recipe } from '@/lib/types';
 
 interface RecipeCardProps {
   recipe: Recipe;
+  /** When true, clicking opens preview panel instead of navigating to full page */
+  previewMode?: boolean;
 }
 
-export function RecipeCard({ recipe }: RecipeCardProps) {
+export function RecipeCard({ recipe, previewMode = false }: RecipeCardProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  
   // Count how many steps can start immediately (no dependencies)
   const parallelSteps = recipe.steps.filter((s) => s.dependsOn.length === 0).length;
+
+  // Check if this recipe is currently being previewed
+  const isActive = pathname === `/recipes/preview/${recipe.id}`;
+
+  // Build URL - use /preview/[id] for preview mode, /[id] for full page
+  const getRecipeUrl = () => {
+    if (previewMode) {
+      // Use preview route and preserve search query
+      const query = searchParams.get('q');
+      const baseUrl = `/recipes/preview/${recipe.id}`;
+      if (query) {
+        return `${baseUrl}?q=${encodeURIComponent(query)}`;
+      }
+      return baseUrl;
+    }
+    return `/recipes/${recipe.id}`;
+  };
+
+  // In preview mode on large screens, we update the URL to show the preview
+  // On small screens (where preview panel is hidden), we navigate to full page
+  const handleClick = (e: React.MouseEvent) => {
+    if (previewMode) {
+      e.preventDefault();
+      router.push(getRecipeUrl(), { scroll: false });
+    }
+  };
   
   return (
-    <Link href={`/recipes/${recipe.id}`}>
-      <Card className="h-full hover:shadow-lg transition-shadow cursor-pointer overflow-hidden">
+    <Link 
+      href={getRecipeUrl()}
+      onClick={handleClick}
+    >
+      <Card className={`h-full hover:shadow-lg transition-all cursor-pointer overflow-hidden ${
+        isActive && previewMode ? 'ring-2 ring-primary shadow-lg' : ''
+      }`}>
         {recipe.imageUrl && (
           <div className="relative w-full h-48">
             <Image

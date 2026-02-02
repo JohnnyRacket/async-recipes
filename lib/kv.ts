@@ -137,3 +137,68 @@ export async function deleteRecipe(id: string): Promise<void> {
   await kv.del(`${RECIPE_PREFIX}${id}`);
   await kv.srem(RECIPE_IDS_KEY, id);
 }
+
+// Search result type for paginated queries
+export interface SearchRecipesResult {
+  recipes: Recipe[];
+  nextCursor: string | null;
+  totalCount: number;
+}
+
+// Search and paginate recipes with cursor-based pagination
+// Cursor is the createdAt timestamp of the last item (as string)
+export async function searchRecipes(options: {
+  query?: string;
+  cursor?: string;
+  limit?: number;
+}): Promise<SearchRecipesResult> {
+  const { query, cursor, limit = 9 } = options;
+  
+  // Get all recipes first (we filter and paginate in memory)
+  const allRecipes = await getRecipes();
+  
+  // Filter by search query if provided
+  let filteredRecipes = allRecipes;
+  if (query && query.trim()) {
+    const searchTerm = query.toLowerCase().trim();
+    filteredRecipes = allRecipes.filter(
+      (recipe) =>
+        recipe.title.toLowerCase().includes(searchTerm) ||
+        recipe.description.toLowerCase().includes(searchTerm) ||
+        recipe.ingredients.some((ing) => ing.toLowerCase().includes(searchTerm))
+    );
+  }
+  
+  const totalCount = filteredRecipes.length;
+  
+  // Apply cursor - find items created before the cursor timestamp
+  let paginatedRecipes = filteredRecipes;
+  if (cursor) {
+    const cursorTimestamp = parseInt(cursor, 10);
+    paginatedRecipes = filteredRecipes.filter(
+      (recipe) => recipe.createdAt < cursorTimestamp
+    );
+  }
+  
+  // Take limit + 1 to check if there are more items
+  const hasMore = paginatedRecipes.length > limit;
+  const recipes = paginatedRecipes.slice(0, limit);
+  
+  // Next cursor is the createdAt of the last item returned
+  const nextCursor = hasMore && recipes.length > 0
+    ? recipes[recipes.length - 1].createdAt.toString()
+    : null;
+  
+  return {
+    recipes,
+    nextCursor,
+    totalCount,
+  };
+}
+
+// Cached version of searchRecipes for Server Components
+export const getCachedSearchRecipes = unstable_cache(
+  searchRecipes,
+  ['search-recipes'],
+  { tags: ['recipes'], revalidate: 3600 }
+);

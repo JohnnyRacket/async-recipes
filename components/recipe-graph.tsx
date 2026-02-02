@@ -20,20 +20,25 @@ import '@xyflow/react/dist/style.css';
 
 interface RecipeGraphProps {
   steps: RecipeStep[];
+  compact?: boolean;
 }
 
-const nodeWidth = 200;
-const nodeHeight = 80;
+const NODE_WIDTH_FULL = 220;
+const NODE_HEIGHT_FULL = 120; // Fits ~4 lines of text before clamping
+const NODE_WIDTH_COMPACT = 120;
+const NODE_HEIGHT_COMPACT = 50;
 
 // Use dagre to automatically layout the graph
 function getLayoutedElements(
   nodes: Node[],
   edges: Edge[],
+  nodeWidth: number,
+  nodeHeight: number,
   direction: 'TB' | 'LR' = 'TB'
 ) {
   const dagreGraph = new dagre.graphlib.Graph();
   dagreGraph.setDefaultEdgeLabel(() => ({}));
-  dagreGraph.setGraph({ rankdir: direction, nodesep: 50, ranksep: 80 });
+  dagreGraph.setGraph({ rankdir: direction, nodesep: 30, ranksep: 50 });
 
   nodes.forEach((node) => {
     dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight });
@@ -59,7 +64,10 @@ function getLayoutedElements(
   return { nodes: layoutedNodes, edges };
 }
 
-export function RecipeGraph({ steps }: RecipeGraphProps) {
+export function RecipeGraph({ steps, compact = false }: RecipeGraphProps) {
+  const nodeWidth = compact ? NODE_WIDTH_COMPACT : NODE_WIDTH_FULL;
+  const nodeHeight = compact ? NODE_HEIGHT_COMPACT : NODE_HEIGHT_FULL;
+
   // Transform steps into React Flow nodes and edges
   const { nodes: initialNodes, edges: initialEdges } = useMemo(() => {
     const nodes: Node[] = steps.map((step, index) => {
@@ -67,21 +75,25 @@ export function RecipeGraph({ steps }: RecipeGraphProps) {
       return {
         id: step.id,
         data: {
-          label: (
+          label: compact ? (
+            <div className="text-center p-1">
+              <div className="font-semibold text-xs">Step {index + 1}</div>
+            </div>
+          ) : (
             <div className="text-center p-2">
               <div className="font-semibold text-sm">Step {index + 1}</div>
-              <div className="text-xs mt-1 line-clamp-2">{step.text}</div>
+              <div className="text-xs mt-1 line-clamp-4">{step.text}</div>
             </div>
           ),
         },
         position: { x: 0, y: 0 }, // Will be set by dagre
         style: {
           width: nodeWidth,
-          minHeight: nodeHeight,
+          height: nodeHeight,
           background: canStartImmediately ? '#dcfce7' : '#fef9c3',
           border: canStartImmediately ? '2px solid #16a34a' : '2px solid #ca8a04',
-          borderRadius: '8px',
-          fontSize: '12px',
+          borderRadius: compact ? '6px' : '8px',
+          fontSize: compact ? '10px' : '12px',
         },
       };
     });
@@ -93,17 +105,45 @@ export function RecipeGraph({ steps }: RecipeGraphProps) {
         target: step.id,
         type: 'smoothstep',
         animated: true,
-        style: { stroke: '#64748b', strokeWidth: 2 },
+        style: { stroke: '#64748b', strokeWidth: compact ? 1 : 2 },
       }))
     );
 
     // Apply dagre layout
-    return getLayoutedElements(nodes, edges);
-  }, [steps]);
+    return getLayoutedElements(nodes, edges, nodeWidth, nodeHeight);
+  }, [steps, compact, nodeWidth, nodeHeight]);
 
   const [nodes, , onNodesChange] = useNodesState(initialNodes);
   const [edges, , onEdgesChange] = useEdgesState(initialEdges);
 
+  // Compact mode - just the graph without wrapper
+  if (compact) {
+    return (
+      <div className="h-full bg-muted/30 rounded-lg">
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          connectionLineType={ConnectionLineType.SmoothStep}
+          fitView
+          fitViewOptions={{ padding: 0.3 }}
+          minZoom={0.3}
+          maxZoom={1}
+          proOptions={{ hideAttribution: true }}
+          nodesDraggable={false}
+          nodesConnectable={false}
+          elementsSelectable={false}
+          panOnDrag={false}
+          zoomOnScroll={false}
+        >
+          <Background color="#94a3b8" gap={12} size={1} />
+        </ReactFlow>
+      </div>
+    );
+  }
+
+  // Full mode with card wrapper
   return (
     <Card>
       <CardHeader>

@@ -92,3 +92,13 @@ export async function deleteRecipeAction(id: string): Promise<SaveRecipeResult> 
     };
   }
 }
+
+// Load more recipes for infinite scroll
+export async function loadMoreRecipes(options: {
+  query?: string;
+  cursor?: string;
+  limit?: number;
+}) {
+  const { searchRecipes } = await import('./kv');
+  return searchRecipes(options);
+}

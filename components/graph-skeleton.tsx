@@ -1,7 +1,22 @@
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 
-export function GraphSkeleton() {
+interface GraphSkeletonProps {
+  compact?: boolean;
+}
+
+export function GraphSkeleton({ compact = false }: GraphSkeletonProps) {
+  if (compact) {
+    return (
+      <div className="h-[250px] flex items-center justify-center bg-muted/50 rounded-lg">
+        <div className="text-center space-y-2">
+          <Skeleton className="h-6 w-6 rounded-full mx-auto" />
+          <p className="text-xs text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>
