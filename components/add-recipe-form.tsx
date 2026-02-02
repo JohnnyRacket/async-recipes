@@ -49,6 +49,7 @@ export function AddRecipeForm() {
         const result = await saveRecipeAction({
           title: object.title!,
           description: object.description || '',
+          imageUrl: object.imageUrl,
           ingredients,
           steps,
           sourceUrl: url,
@@ -107,33 +108,61 @@ export function AddRecipeForm() {
 
       {/* Streaming Results Section */}
       {(isLoading || object) && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span>
-                {isLoading ? 'Extracting Recipe...' : 'Extracted Recipe'}
-              </span>
-              {isLoading && (
-                <Badge variant="secondary" className="animate-pulse">
-                  Streaming
+        <Card className="overflow-hidden pt-0">
+          {/* Hero Image */}
+          <div className="relative w-full h-56 bg-gradient-to-br from-orange-100 to-amber-50 dark:from-orange-950 dark:to-amber-900">
+            {object?.imageUrl ? (
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img 
+                  src={object.imageUrl} 
+                  alt={object.title || 'Recipe'} 
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+              </>
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-center">
+                  <svg
+                    className="w-16 h-16 mx-auto text-orange-300 dark:text-orange-700"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+                    />
+                  </svg>
+                  <p className="mt-2 text-sm text-orange-400 dark:text-orange-600">
+                    {isLoading ? 'Looking for recipe image...' : 'No image found'}
+                  </p>
+                </div>
+              </div>
+            )}
+            {/* Status badge */}
+            <div className="absolute top-3 right-3">
+              {isLoading ? (
+                <Badge variant="secondary" className="animate-pulse bg-white/90 dark:bg-black/70">
+                  Extracting...
                 </Badge>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Title */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Title</label>
-              {object?.title ? (
-                <p className="text-lg font-semibold">{object.title}</p>
               ) : (
-                <Skeleton className="h-7 w-64" />
+                <Badge className="bg-green-600">Ready to save</Badge>
               )}
             </div>
+          </div>
 
-            {/* Description */}
+          <CardContent className="space-y-6 pt-6">
+            {/* Title & Description */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Description</label>
+              {object?.title ? (
+                <h2 className="text-2xl font-bold">{object.title}</h2>
+              ) : (
+                <Skeleton className="h-8 w-3/4" />
+              )}
               {object?.description ? (
                 <p className="text-muted-foreground">{object.description}</p>
               ) : (

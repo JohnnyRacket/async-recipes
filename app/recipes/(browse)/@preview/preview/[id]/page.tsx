@@ -33,6 +33,11 @@ export default async function RecipePreviewPage({ params }: PreviewPageProps) {
           alt={recipe.title}
           sizes="420px"
         />
+        {!recipe.imageUrl && (
+          <div className="absolute bottom-2 right-2">
+            <Badge variant="secondary" className="text-xs opacity-75">No image</Badge>
+          </div>
+        )}
       </div>
 
       <CardHeader className="pb-3">
