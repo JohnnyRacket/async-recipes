@@ -64,8 +64,8 @@ export async function saveRecipeAction(
     // Save to KV
     await saveRecipe(recipe);
 
-    // Revalidate caches - Next.js 16 requires second 'max' argument for stale-while-revalidate
-    revalidateTag('recipes', 'max');
+    // Revalidate caches
+    revalidateTag('recipes');
     revalidatePath('/');
     revalidatePath('/recipes');
     revalidatePath(`/recipes/${id}`);
@@ -85,8 +85,8 @@ export async function deleteRecipeAction(id: string): Promise<SaveRecipeResult> 
     const { deleteRecipe } = await import('./kv');
     await deleteRecipe(id);
 
-    // Revalidate caches - Next.js 16 requires second 'max' argument for stale-while-revalidate
-    revalidateTag('recipes', 'max');
+    // Revalidate caches
+    revalidateTag('recipes');
     revalidatePath('/');
     revalidatePath('/recipes');
     revalidatePath(`/recipes/${id}`);
