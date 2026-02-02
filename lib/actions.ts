@@ -53,6 +53,7 @@ export async function saveRecipeAction(
         // Preserve the new metadata fields
         duration: step.duration,
         isPassive: step.isPassive,
+        needsTimer: step.needsTimer,
         ingredients: step.ingredients,
         temperature: step.temperature,
       })),

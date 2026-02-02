@@ -32,6 +32,7 @@ export const seedRecipes: Recipe[] = [
         dependsOn: [],
         duration: 10,
         isPassive: true,
+        needsTimer: false, // Visual cue - water boiling
         temperature: 'high heat',
       },
       {
@@ -48,6 +49,7 @@ export const seedRecipes: Recipe[] = [
         dependsOn: [],
         duration: 10,
         isPassive: false,
+        needsTimer: true, // Precise timing to avoid burning
         ingredients: ['pancetta'],
         temperature: 'medium heat',
       },
@@ -57,6 +59,7 @@ export const seedRecipes: Recipe[] = [
         dependsOn: ['step1'],
         duration: 10,
         isPassive: true,
+        needsTimer: true, // Pasta timing is critical for al dente
         ingredients: ['spaghetti'],
         temperature: 'high heat',
       },
@@ -385,6 +388,7 @@ export const seedRecipes: Recipe[] = [
         dependsOn: ['step7'],
         duration: 11,
         isPassive: true,
+        needsTimer: true, // Precise baking time for perfect cookies
         temperature: '375°F',
       },
       {
@@ -393,6 +397,7 @@ export const seedRecipes: Recipe[] = [
         dependsOn: ['step8'],
         duration: 5,
         isPassive: true,
+        needsTimer: true, // Cooling time before transferring
       },
     ],
     createdAt: Date.now(),

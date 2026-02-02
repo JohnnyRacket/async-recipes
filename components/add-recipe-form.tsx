@@ -49,6 +49,7 @@ export function AddRecipeForm() {
             // Preserve the new metadata fields
             duration: s.duration,
             isPassive: s.isPassive,
+            needsTimer: s.needsTimer,
             ingredients: s.ingredients?.filter((i): i is string => i !== undefined),
             temperature: s.temperature,
           }));
@@ -251,7 +252,13 @@ export function AddRecipeForm() {
                             {step.isPassive && (
                               <span className="text-blue-600">Passive</span>
                             )}
-                            {(step.duration || step.temperature || step.isPassive) && (
+                            {step.needsTimer && (
+                              <span className="inline-flex items-center gap-1 text-purple-600">
+                                <TimerIcon className="w-3 h-3" />
+                                Timer
+                              </span>
+                            )}
+                            {(step.duration || step.temperature || step.isPassive || step.needsTimer) && (
                               <span className="text-border">|</span>
                             )}
                             {!step.dependsOn?.length ? (
@@ -350,6 +357,17 @@ function ThermometerIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z" />
+    </svg>
+  );
+}
+
+function TimerIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <circle cx="12" cy="13" r="8" strokeWidth="2" />
+      <path strokeWidth="2" strokeLinecap="round" d="M12 9v4l2 2" />
+      <path strokeWidth="2" strokeLinecap="round" d="M9 2h6" />
+      <path strokeWidth="2" strokeLinecap="round" d="M12 2v2" />
     </svg>
   );
 }

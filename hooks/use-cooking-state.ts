@@ -151,15 +151,35 @@ export function useCookingState(steps: RecipeStep[]): CookingState & CookingActi
       ...prev,
       [stepId]: status,
     }));
+    // Remove timer when step is marked complete
+    if (status === 'completed') {
+      setTimers((prev) => {
+        if (!prev[stepId]) return prev;
+        const { [stepId]: removed, ...rest } = prev;
+        return rest;
+      });
+    }
   }, []);
 
   const cycleStepStatus = useCallback((stepId: string) => {
-    setStepStatuses((prev) => {
-      const current = prev[stepId] || 'pending';
-      const next: StepStatus = current === 'pending' ? 'completed' : 'pending';
-      return { ...prev, [stepId]: next };
-    });
-  }, []);
+    // Check current status before updating
+    const current = stepStatuses[stepId] || 'pending';
+    const next: StepStatus = current === 'pending' ? 'completed' : 'pending';
+    
+    setStepStatuses((prev) => ({
+      ...prev,
+      [stepId]: next,
+    }));
+    
+    // Remove timer when cycling to completed
+    if (next === 'completed') {
+      setTimers((prev) => {
+        if (!prev[stepId]) return prev;
+        const { [stepId]: removed, ...rest } = prev;
+        return rest;
+      });
+    }
+  }, [stepStatuses]);
 
   const startTimer = useCallback((stepId: string, minutes: number) => {
     const totalSeconds = minutes * 60;
