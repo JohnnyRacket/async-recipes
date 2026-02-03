@@ -172,6 +172,33 @@ export async function deleteRecipe(id: string): Promise<void> {
   await redis.srem(RECIPE_IDS_KEY, id);
 }
 
+// Sync recipe IDs set with actual recipe keys in Redis
+// Useful when recipes are deleted directly from the database
+export async function syncRecipeIds(): Promise<number> {
+  await initializeStore();
+  
+  if (!isRedisConfigured() || !redis) {
+    // For memory store, just return the size
+    return memoryStore.size;
+  }
+  
+  // Get all keys matching the recipe prefix
+  const keys = await redis.keys(`${RECIPE_PREFIX}*`);
+  
+  // Extract recipe IDs by removing the prefix
+  const recipeIds = keys
+    .map((key) => key.replace(RECIPE_PREFIX, ''))
+    .filter((id) => id.length > 0); // Filter out any empty strings
+  
+  // Delete the old set and rebuild it
+  await redis.del(RECIPE_IDS_KEY);
+  if (recipeIds.length > 0) {
+    await redis.sadd(RECIPE_IDS_KEY, ...recipeIds);
+  }
+  
+  return recipeIds.length;
+}
+
 // Search result type for paginated queries
 export interface SearchRecipesResult {
   recipes: Recipe[];

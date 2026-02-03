@@ -35,6 +35,15 @@ function ParallelIcon({ className }: { className?: string }) {
   );
 }
 
+function ClockIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="10" strokeWidth="2" />
+      <path strokeWidth="2" strokeLinecap="round" d="M12 6v6l4 2" />
+    </svg>
+  );
+}
+
 interface PreviewPageProps {
   params: Promise<{ id: string }>;
 }
@@ -48,6 +57,7 @@ export default async function RecipePreviewPage({ params }: PreviewPageProps) {
   }
 
   const parallelSteps = recipe.steps.filter((s) => s.dependsOn.length === 0).length;
+  const totalTime = recipe.steps.reduce((sum, step) => sum + (step.duration || 0), 0);
 
   return (
     <Card className="overflow-hidden pt-0">
@@ -91,6 +101,12 @@ export default async function RecipePreviewPage({ params }: PreviewPageProps) {
             <IngredientsIcon className="w-4 h-4 text-green-500" />
             <span>{recipe.ingredients.length} ingredients</span>
           </span>
+          {totalTime > 0 && (
+            <span className="inline-flex items-center gap-1.5">
+              <ClockIcon className="w-4 h-4 text-orange-500" />
+              <span>{totalTime} min</span>
+            </span>
+          )}
           {parallelSteps > 1 && (
             <span className="inline-flex items-center gap-1.5 text-amber-600 font-medium">
               <ParallelIcon className="w-4 h-4" />
