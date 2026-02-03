@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -16,6 +17,18 @@ export function RecipeCard({ recipe, previewMode = false }: RecipeCardProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [isMobile, setIsMobile] = useState(false);
+  
+  // Detect mobile screen size (preview panel is hidden below lg breakpoint)
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024); // lg breakpoint is 1024px
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
   
   // Count how many steps can start immediately (no dependencies)
   const parallelSteps = recipe.steps.filter((s) => s.dependsOn.length === 0).length;
@@ -26,8 +39,14 @@ export function RecipeCard({ recipe, previewMode = false }: RecipeCardProps) {
   // Check if this recipe is currently being previewed
   const isActive = pathname === `/recipes/preview/${recipe.id}`;
 
-  // Build URL - use /preview/[id] for preview mode, /[id] for full page
+  // Build URL - use /preview/[id] for preview mode on desktop, /[id] for full page
+  // On mobile, always use full page since preview panel is hidden
   const getRecipeUrl = () => {
+    // On mobile, always navigate to full recipe page
+    if (isMobile) {
+      return `/recipes/${recipe.id}`;
+    }
+    
     if (previewMode) {
       // Use preview route and preserve search query
       const query = searchParams.get('q');
@@ -43,6 +62,11 @@ export function RecipeCard({ recipe, previewMode = false }: RecipeCardProps) {
   // In preview mode on large screens, we update the URL to show the preview
   // On small screens (where preview panel is hidden), we navigate to full page
   const handleClick = (e: React.MouseEvent) => {
+    // On mobile, always navigate normally (no preview mode)
+    if (isMobile) {
+      return;
+    }
+    
     if (previewMode) {
       e.preventDefault();
       router.push(getRecipeUrl(), { scroll: false });

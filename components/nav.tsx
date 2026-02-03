@@ -10,19 +10,21 @@ export function Nav() {
             <span className="text-2xl">🍴</span>
             <span className="text-xl font-bold">Forked Recipes</span>
           </Link>
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3 sm:gap-6">
             <Link 
               href="/recipes" 
-              className="text-muted-foreground hover:text-foreground transition-colors"
+              className="text-muted-foreground hover:text-foreground transition-colors text-sm sm:text-base"
             >
-              All Recipes
+              <span className="hidden sm:inline">All Recipes</span>
+              <span className="sm:hidden">Recipes</span>
             </Link>
-            <Separator orientation="vertical" className="h-6" />
+            <Separator orientation="vertical" className="h-6 hidden sm:block" />
             <Link 
               href="/add" 
-              className="bg-gradient-to-r from-orange-500 to-amber-400 text-white px-4 py-2 rounded-full font-medium hover:from-orange-600 hover:to-amber-500 transition-all hover:scale-105 shadow-md"
+              className="bg-gradient-to-r from-orange-500 to-amber-400 text-white px-3 py-2 sm:px-4 rounded-full font-medium hover:from-orange-600 hover:to-amber-500 transition-all hover:scale-105 shadow-md text-sm sm:text-base whitespace-nowrap"
             >
-              ✨ Fork a Recipe
+              <span className="hidden sm:inline">✨ Fork a Recipe</span>
+              <span className="sm:hidden">✨ Fork</span>
             </Link>
           </div>
         </nav>
