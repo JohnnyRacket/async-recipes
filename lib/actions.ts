@@ -65,7 +65,7 @@ export async function saveRecipeAction(
     await saveRecipe(recipe);
 
     // Revalidate caches
-    revalidateTag('recipes');
+    revalidateTag('recipes', 'max');
     revalidatePath('/');
     revalidatePath('/recipes');
     revalidatePath(`/recipes/${id}`);
@@ -86,7 +86,7 @@ export async function deleteRecipeAction(id: string): Promise<SaveRecipeResult> 
     await deleteRecipe(id);
 
     // Revalidate caches
-    revalidateTag('recipes');
+    revalidateTag('recipes', 'max');
     revalidatePath('/');
     revalidatePath('/recipes');
     revalidatePath(`/recipes/${id}`);

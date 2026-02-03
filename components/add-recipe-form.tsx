@@ -58,10 +58,15 @@ function AddRecipeForm({ onReset }: AddRecipeFormProps) {
     schema: RecipeSchema,
   });
 
-  // Use enhanced object if available, otherwise use extracted
-  const object = isEnhanced && enhancedObject ? enhancedObject : extractedObject;
+  // Use enhanced object only if it has meaningful data, otherwise fall back to extracted
+  const enhancedHasData = enhancedObject?.title || enhancedObject?.steps?.length;
+  const object = isEnhanced && enhancedHasData ? enhancedObject : extractedObject;
   const isLoading = isExtracting || isEnhancing;
   const error = isEnhanced ? enhanceError : extractError;
+
+  // Check completeness from both sources - allow saving if either is complete
+  const extractedIsComplete = extractedObject?.title && extractedObject?.ingredients?.length && extractedObject?.steps?.length;
+  const enhancedIsComplete = enhancedObject?.title && enhancedObject?.ingredients?.length && enhancedObject?.steps?.length;
 
   // Detect extraction failure (completed but no useful data)
   useEffect(() => {
@@ -169,7 +174,8 @@ function AddRecipeForm({ onReset }: AddRecipeFormProps) {
     });
   };
 
-  const isComplete = object?.title && object?.ingredients?.length && object?.steps?.length;
+  // Show save button if we have complete data from either source
+  const isComplete = enhancedIsComplete || extractedIsComplete;
 
   return (
     <div className="space-y-8">
