@@ -64,7 +64,19 @@ FIRST: Determine if this page contains a legitimate cooking/food recipe.
 - Set isValidRecipe=false if it's: spam, gibberish, a product page, non-cooking instructions, a joke submission, or missing key recipe elements (no ingredients or no cooking steps)
 - If isValidRecipe=false, provide invalidReason explaining why (e.g., "Page contains a product listing, not a recipe", "Content is unrelated to cooking", "No cooking instructions found")
 
-ONLY if isValidRecipe=true, extract the recipe data into the "recipe" field:
+ONLY if isValidRecipe=true, extract the recipe data into the "recipe" field.
+
+REQUIRED FIELDS (you MUST provide all of these if isValidRecipe=true):
+- title: The recipe name (REQUIRED)
+- description: A 1-2 sentence description (REQUIRED)
+- ingredients: Array of ingredients with quantities (REQUIRED, must not be empty)
+- steps: Array of cooking steps (REQUIRED, must not be empty)
+- Each step MUST have: id (string like "step1"), text (the instruction), dependsOn (array, can be empty [])
+
+OPTIONAL FIELDS (include if available):
+- imageUrl: Main recipe photo URL
+- ingredientCategories: Map of ingredient names to categories
+- Step metadata: duration, isPassive, needsTimer, ingredients, temperature
 
 INGREDIENTS LIST: Extract the FULL ingredient list with exact quantities and measurements as written in the recipe. 
 - Include the amount, unit, and ingredient name (e.g., "2 cups all-purpose flour", "1 lb chicken breast", "3 cloves garlic, minced")
@@ -133,6 +145,18 @@ Example ingredientCategories:
 
 IMAGE: If any of these image URLs appears to be the main recipe photo (not an ad, logo, or unrelated image), include it as imageUrl:
 ${imageUrls.join('\n')}
+
+FINAL VALIDATION CHECKLIST (if isValidRecipe=true):
+Before outputting, verify your recipe object has:
+✓ title - non-empty string
+✓ description - non-empty string  
+✓ ingredients - non-empty array of strings
+✓ steps - non-empty array where EACH step has:
+  - id: string (e.g., "step1")
+  - text: string (the instruction)
+  - dependsOn: array of step IDs (can be empty [])
+
+If any required field is missing or empty, set isValidRecipe=false instead.
 
 Webpage content:
 ${textContent}`,

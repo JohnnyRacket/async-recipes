@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition, useEffect, useCallback } from 'react';
+import { useState, useTransition, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Image from 'next/image';
 import { experimental_useObject as useObject } from '@ai-sdk/react';
@@ -59,15 +59,96 @@ function AddRecipeForm({ onReset }: AddRecipeFormProps) {
     schema: RecipeSchema,
   });
 
-  // Use enhanced object only if it has meaningful data, otherwise fall back to extracted
-  const enhancedHasData = enhancedObject?.title || enhancedObject?.steps?.length;
-  const object = isEnhanced && enhancedHasData ? enhancedObject : extractedObject;
+  // Merge enhanced data with extracted data to prevent field loss during streaming
+  // This ensures we never lose imageUrl or other fields when enhancing
+  // BUT: Enhancement can ADD steps that were missing, so we prefer enhanced steps when available
+  const mergedObject = useMemo(() => {
+    if (!isEnhanced || !extractedObject) return extractedObject;
+    if (!enhancedObject) return extractedObject;
+    
+    // For steps: Enhancement may find MISSING steps, so prefer enhanced if it has more complete data
+    // During streaming, enhanced might be incomplete, so we need smart fallback
+    const enhancedStepsCount = enhancedObject.steps?.filter(s => s?.id && s?.text).length ?? 0;
+    const extractedStepsCount = extractedObject.steps?.filter(s => s?.id && s?.text).length ?? 0;
+    
+    let mergedSteps;
+    if (enhancedStepsCount >= extractedStepsCount) {
+      // Enhanced has same or more steps - use enhanced steps (may have found missing ones)
+      // But fill in any missing metadata from extracted during streaming
+      mergedSteps = enhancedObject.steps?.map((enhancedStep) => {
+        if (!enhancedStep?.id) return enhancedStep;
+        // Try to find matching step in extracted by ID
+        const extractedStep = extractedObject.steps?.find(s => s?.id === enhancedStep.id);
+        
+        return {
+          id: enhancedStep.id,
+          text: enhancedStep.text ?? extractedStep?.text,
+          // For dependencies: prefer enhanced (may have re-analyzed them)
+          dependsOn: enhancedStep.dependsOn ?? extractedStep?.dependsOn ?? [],
+          duration: enhancedStep.duration ?? extractedStep?.duration,
+          isPassive: enhancedStep.isPassive ?? extractedStep?.isPassive,
+          needsTimer: enhancedStep.needsTimer ?? extractedStep?.needsTimer,
+          ingredients: enhancedStep.ingredients ?? extractedStep?.ingredients,
+          temperature: enhancedStep.temperature ?? extractedStep?.temperature,
+        };
+      });
+    } else {
+      // Enhanced is still streaming and has fewer steps - show extracted while streaming continues
+      // But merge in any enhanced metadata for steps that are present
+      mergedSteps = extractedObject.steps?.map((extractedStep) => {
+        if (!extractedStep?.id) return extractedStep;
+        const enhancedStep = enhancedObject.steps?.find(s => s?.id === extractedStep.id);
+        if (!enhancedStep) return extractedStep;
+        
+        return {
+          id: extractedStep.id,
+          text: extractedStep.text,
+          dependsOn: enhancedStep.dependsOn ?? extractedStep.dependsOn ?? [],
+          duration: enhancedStep.duration ?? extractedStep.duration,
+          isPassive: enhancedStep.isPassive ?? extractedStep.isPassive,
+          needsTimer: enhancedStep.needsTimer ?? extractedStep.needsTimer,
+          ingredients: enhancedStep.ingredients ?? extractedStep.ingredients,
+          temperature: enhancedStep.temperature ?? extractedStep.temperature,
+        };
+      });
+    }
+
+    // Merge ingredient categories
+    const mergedIngredientCategories = {
+      ...(extractedObject.ingredientCategories || {}),
+      ...(enhancedObject.ingredientCategories || {}),
+    };
+
+    // For ingredients: prefer enhanced if it has more (may have found missing ones)
+    const enhancedIngredientsCount = enhancedObject.ingredients?.filter(i => i).length ?? 0;
+    const extractedIngredientsCount = extractedObject.ingredients?.filter(i => i).length ?? 0;
+
+    return {
+      // For each field: prefer enhanced if it has a meaningful value, otherwise keep extracted
+      title: enhancedObject.title || extractedObject.title,
+      description: enhancedObject.description || extractedObject.description,
+      // CRITICAL: Preserve imageUrl - only replace if enhanced has a non-empty value
+      imageUrl: enhancedObject.imageUrl || extractedObject.imageUrl,
+      // Prefer enhanced ingredients if they have more items (may have found missing ones)
+      ingredients: enhancedIngredientsCount >= extractedIngredientsCount 
+        ? enhancedObject.ingredients 
+        : extractedObject.ingredients,
+      ingredientCategories: Object.keys(mergedIngredientCategories).length > 0 
+        ? mergedIngredientCategories 
+        : undefined,
+      steps: mergedSteps,
+    };
+  }, [isEnhanced, extractedObject, enhancedObject]);
+
+  // Use the merged object for display
+  const object = mergedObject;
   const isLoading = isExtracting || isEnhancing;
   const error = isEnhanced ? enhanceError : extractError;
 
-  // Check completeness from both sources - allow saving if either is complete
+  // Check completeness - the merged object should have all required fields
+  const objectIsComplete = object?.title && object?.ingredients?.length && object?.steps?.length;
+  // Also track if we had complete data before enhancement (for fallback purposes)
   const extractedIsComplete = extractedObject?.title && extractedObject?.ingredients?.length && extractedObject?.steps?.length;
-  const enhancedIsComplete = enhancedObject?.title && enhancedObject?.ingredients?.length && enhancedObject?.steps?.length;
 
   // Detect extraction failure (completed but no useful data)
   useEffect(() => {
@@ -128,22 +209,54 @@ function AddRecipeForm({ onReset }: AddRecipeFormProps) {
     startTransition(async () => {
       try {
         // Filter out any undefined values from streaming partial objects
-        const ingredients = (object.ingredients || []).filter((i): i is string => i !== undefined);
+        const ingredients = (object.ingredients || []).filter((i): i is string => 
+          i !== undefined && i !== null && typeof i === 'string' && i.trim().length > 0
+        );
+        
+        // Validate we have at least one ingredient
+        if (ingredients.length === 0) {
+          setSaveError('Recipe must have at least one ingredient');
+          return;
+        }
+        
         const steps = (object.steps || [])
           .filter((s): s is NonNullable<typeof s> & { id: string; text: string } => 
-            s !== undefined && s.id !== undefined && s.text !== undefined
+            s !== undefined && 
+            s !== null &&
+            s.id !== undefined && 
+            s.id !== null &&
+            typeof s.id === 'string' &&
+            s.text !== undefined && 
+            s.text !== null &&
+            typeof s.text === 'string' &&
+            s.text.trim().length > 0
           )
           .map(s => ({
             id: s.id,
             text: s.text,
-            dependsOn: (s.dependsOn || []).filter((d): d is string => d !== undefined),
+            // Ensure dependsOn is always a valid array of strings
+            dependsOn: Array.isArray(s.dependsOn) 
+              ? s.dependsOn.filter((d): d is string => 
+                  d !== undefined && d !== null && typeof d === 'string'
+                )
+              : [],
             // Preserve the new metadata fields
-            duration: s.duration,
-            isPassive: s.isPassive,
-            needsTimer: s.needsTimer,
-            ingredients: s.ingredients?.filter((i): i is string => i !== undefined),
-            temperature: s.temperature,
+            duration: typeof s.duration === 'number' ? s.duration : undefined,
+            isPassive: typeof s.isPassive === 'boolean' ? s.isPassive : undefined,
+            needsTimer: typeof s.needsTimer === 'boolean' ? s.needsTimer : undefined,
+            ingredients: Array.isArray(s.ingredients) 
+              ? s.ingredients.filter((i): i is string => 
+                  i !== undefined && i !== null && typeof i === 'string'
+                )
+              : undefined,
+            temperature: typeof s.temperature === 'string' ? s.temperature : undefined,
           }));
+        
+        // Validate we have at least one valid step
+        if (steps.length === 0) {
+          setSaveError('Recipe must have at least one valid cooking step');
+          return;
+        }
 
         // Clean up ingredientCategories (filter out undefined values from streaming)
         const ingredientCategories = object.ingredientCategories 
@@ -175,8 +288,8 @@ function AddRecipeForm({ onReset }: AddRecipeFormProps) {
     });
   };
 
-  // Show save button if we have complete data from either source
-  const isComplete = enhancedIsComplete || extractedIsComplete;
+  // Show save button if the merged object has all required data
+  const isComplete = objectIsComplete;
 
   return (
     <div className="space-y-8">

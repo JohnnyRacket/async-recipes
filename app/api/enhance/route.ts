@@ -67,71 +67,75 @@ export async function POST(req: Request) {
     const result = streamObject({
       model: gateway('openai/gpt-oss-20b'),
       schema: RecipeSchema,
-      prompt: `You are IMPROVING an existing recipe extraction. The initial extraction may have missing or incomplete data.
+      prompt: `You are FIXING and IMPROVING an existing recipe extraction. The initial extraction often has problems:
+- Missing steps (only captured some of the instructions)
+- Wrong or missing step dependencies
+- Missing ingredients
+- Missing metadata (duration, temperature, etc.)
 
-EXISTING RECIPE DATA (use as your starting point - keep what's good, improve what's missing):
+EXISTING RECIPE DATA (starting point - may have errors):
 ${JSON.stringify(existingRecipe, null, 2)}
 
-YOUR TASK: Review the existing data against the original webpage content and fill in ANY missing or incomplete fields.
+YOUR TASK: Compare the existing data against the ORIGINAL WEBPAGE and fix any issues.
 
-REVIEW AND FILL IN ANY MISSING DATA:
+=== FIELDS TO PRESERVE (keep unless clearly wrong) ===
 
-1. IMAGE URL: ${!existingRecipe.imageUrl ? 'MISSING - find the main recipe photo from the images below' : 'Already set, but verify it looks correct'}
-   Available images on page:
-   ${imageUrls.join('\n   ')}
-   Choose the one that looks like the main recipe photo (not ads, logos, author photos, or icons).
+TITLE: "${existingRecipe.title || ''}" - Keep this exact title.
 
-2. DESCRIPTION: ${!existingRecipe.description || existingRecipe.description.length < 20 ? 'MISSING or too short - write a compelling 1-2 sentence description' : 'Looks good, keep it'}
+IMAGE URL: ${existingRecipe.imageUrl ? `KEEP "${existingRecipe.imageUrl}" - This is already set and MUST appear in your output.` : 'MISSING - Find the main recipe photo below.'}
+Available images: ${imageUrls.join(', ')}
 
-3. INGREDIENTS LIST: Verify the full list is captured with exact quantities. Add any missing ingredients.
+DESCRIPTION: ${existingRecipe.description && existingRecipe.description.length >= 20 ? `Keep: "${existingRecipe.description}"` : 'MISSING - Write a 1-2 sentence description.'}
 
-FOCUS ESPECIALLY ON STEP METADATA (often incomplete in first pass):
+=== FIELDS TO ACTIVELY FIX AND IMPROVE ===
 
-For EACH step, ensure these fields are filled in:
+INGREDIENTS - Check the webpage for the COMPLETE ingredient list:
+- Current extraction has ${existingRecipe.ingredients?.length || 0} ingredients
+- Look for ANY missing ingredients in the webpage
+- Include exact quantities (e.g., "2 cups flour", "1 lb chicken")
 
-1. DURATION (minutes): Estimate how long the step takes. Look for explicit times ("cook for 10 minutes", "bake 25-30 minutes") or infer reasonable times:
-   - Chopping/prep: 2-5 min depending on amount
-   - Boiling water: 8-10 min
-   - Sautéing onions: 5-8 min
-   - Simmering: as stated or 15-20 min typical
-   - Baking: as stated in recipe
-   - Resting meat: 5-10 min
-   Use the longer time if a range is given.
+STEPS - THIS IS CRITICAL - The initial extraction often misses steps:
+- Current extraction has ${existingRecipe.steps?.length || 0} steps
+- Read the webpage carefully and extract ALL cooking steps
+- Common issues: steps merged together, prep steps skipped, final steps omitted
+- If the webpage has more steps than the current extraction, ADD THEM
+- Number steps sequentially: step1, step2, step3, etc.
 
-2. IS PASSIVE: Set to true if the cook can walk away or multitask during this step:
-   - Passive (true): boiling water, simmering, baking, roasting, marinating, resting, preheating oven, slow cooking
-   - Active (false): chopping, stirring, flipping, sautéing, whisking, assembling, plating
+STEP DEPENDENCIES - Re-analyze from scratch:
+- Don't just copy existing dependsOn - evaluate what makes sense
+- Steps that can start immediately = empty dependsOn []
+- Steps requiring previous completion = list those step IDs
+- Look for parallel opportunities: prep work, preheating, boiling water
+- Look for sequences: can't add to pan before heating it
 
-3. NEEDS TIMER: Set to true ONLY if the step requires precise timing:
-   - NEEDS TIMER (true): "bake for 25 minutes", "simmer for 10 minutes", "boil pasta 8-10 minutes"
-   - NO TIMER (false): "chop onions", "sauté until golden", "stir until combined"
-   Key question: Does the cook need an alarm, or can they tell by looking/tasting/touching?
+For EACH step, include metadata:
+1. DURATION (minutes): Explicit times or infer (chopping: 2-5, sautéing: 5-8, baking: as stated)
+2. IS PASSIVE: true = hands-off (simmering, baking), false = active (chopping, stirring)  
+3. NEEDS TIMER: true = precise timing needed ("bake 25 min"), false = visual cues ("until golden")
+4. INGREDIENTS: Short names for THIS step (e.g., ["chicken", "salt"])
+5. TEMPERATURE: If mentioned (e.g., "375°F", "medium-high heat")
 
-4. INGREDIENTS: List short ingredient names used in THIS step only (e.g., ["chicken", "salt", "pepper"])
+INGREDIENT CATEGORIES: Map each short ingredient name to:
+- "meat": beef, chicken, pork, bacon, lamb, turkey, sausage
+- "seafood": fish, salmon, shrimp, tuna, lobster
+- "vegetable": onion, garlic, tomato, pepper, carrot, potato, mushroom
+- "dairy": butter, milk, cream, cheese, egg
+- "grain": flour, bread, pasta, rice, noodle
+- "sauce": sauce, soy sauce, vinegar, oil, broth, wine
+- "spice": salt, pepper, cumin, paprika, oregano, basil, sugar, honey
+- "chocolate": chocolate, cocoa
+- "other": anything else
 
-5. TEMPERATURE: Include cooking temp if mentioned (e.g., "375°F", "medium-high heat")
+=== FINAL VALIDATION ===
+Before outputting, verify:
+✓ title is set
+✓ imageUrl is set (use "${existingRecipe.imageUrl || 'NONE'}" if nothing better)
+✓ description is set
+✓ ingredients array has ALL ingredients from webpage
+✓ steps array has ALL steps from webpage (not just what was in existing data)
+✓ each step has: id, text, dependsOn (array)
 
-6. DEPENDS ON: Analyze step dependencies carefully for parallel cooking opportunities:
-   - Steps that can start immediately should have empty dependsOn arrays
-   - Steps requiring other steps to complete first should list those step IDs
-   - Look for: "once the X is done", "after", "when", "while"
-   - Parallel: prep work, preheating, marinating can happen simultaneously
-   - Sequential: can't add ingredients to a pan before heating it
-
-INGREDIENT CATEGORIES: Create a complete ingredientCategories object mapping each unique short ingredient name to one of these categories:
-- "meat": beef, chicken, pork, steak, bacon, pancetta, lamb, turkey, sausage, ham, prosciutto
-- "seafood": fish, salmon, shrimp, tuna, cod, lobster, crab, scallop, mussel, clam, anchovy
-- "vegetable": onion, garlic, tomato, pepper, carrot, celery, potato, broccoli, spinach, lettuce, mushroom, asparagus, peas, beans, corn, cabbage, kale, ginger
-- "dairy": butter, milk, cream, cheese (parmesan, pecorino, mozzarella, cheddar), yogurt, egg, yolk
-- "grain": flour, bread, pasta, rice, noodle, spaghetti, oat, quinoa, couscous, tortilla
-- "sauce": sauce, soy sauce, vinegar, oil, sesame oil, mayo, ketchup, mustard, dressing, broth, stock, wine
-- "spice": salt, pepper, cumin, paprika, oregano, basil, thyme, rosemary, cinnamon, vanilla, sugar, honey, syrup, baking powder, baking soda
-- "chocolate": chocolate, cocoa, chocolate chips
-- "other": anything that doesn't fit above categories
-
-IMPORTANT: Keep the same step IDs (step1, step2, etc.) and step text from the existing data. Only enhance the metadata fields.
-
-Original webpage content for reference:
+ORIGINAL WEBPAGE CONTENT (source of truth for steps and ingredients):
 ${textContent}`,
     });
 
