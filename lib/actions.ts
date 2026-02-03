@@ -57,6 +57,7 @@ export async function saveRecipeAction(
         ingredients: step.ingredients,
         temperature: step.temperature,
       })),
+      calories: input.calories,
       createdAt: Date.now(),
       featured: false,
     };

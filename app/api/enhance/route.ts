@@ -126,6 +126,18 @@ INGREDIENT CATEGORIES: Map each short ingredient name to:
 - "chocolate": chocolate, cocoa
 - "other": anything else
 
+CALORIES (REQUIRED - always provide):
+You MUST always provide a calories estimate. This is a required field.
+- FIRST: Look for explicit calorie information on the page (e.g., "350 calories", "450 kcal per serving", "nutrition facts", "calories per serving")
+- If found, use that exact number
+- If NOT found, estimate based on ingredients and typical serving sizes:
+  * Main ingredients (meat/protein: ~200-300 cal, carbs/grains: ~150-200 cal, vegetables: ~50-100 cal per serving)
+  * Cooking method (fried adds more calories than baked/grilled)
+  * Typical serving sizes
+  * Dish type: pasta dishes: 400-600, salads: 200-400, desserts: 300-500, meat dishes: 500-800, soups: 150-300, sandwiches: 400-600
+- ALWAYS provide a reasonable estimate even if not explicitly stated (aim for accuracy within 100-200 calories)
+- Round to the nearest 10-50 calories (e.g., 425, 350, 580)
+
 === FINAL VALIDATION ===
 Before outputting, verify:
 ✓ title is set
@@ -134,6 +146,7 @@ Before outputting, verify:
 ✓ ingredients array has ALL ingredients from webpage
 ✓ steps array has ALL steps from webpage (not just what was in existing data)
 ✓ each step has: id, text, dependsOn (array)
+✓ calories is set (extract from webpage or estimate based on ingredients)
 
 ORIGINAL WEBPAGE CONTENT (source of truth for steps and ingredients):
 ${textContent}`,

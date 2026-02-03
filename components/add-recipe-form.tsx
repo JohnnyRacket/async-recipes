@@ -137,6 +137,8 @@ function AddRecipeForm({ onReset }: AddRecipeFormProps) {
         ? mergedIngredientCategories 
         : undefined,
       steps: mergedSteps,
+      // Prefer enhanced calories if available, otherwise use extracted
+      calories: enhancedObject.calories ?? extractedObject.calories,
     };
   }, [isEnhanced, extractedObject, enhancedObject]);
 
@@ -274,6 +276,7 @@ function AddRecipeForm({ onReset }: AddRecipeFormProps) {
           ingredients,
           ingredientCategories,
           steps,
+          calories: typeof object.calories === 'number' ? object.calories : undefined,
           sourceUrl: url,
         });
 

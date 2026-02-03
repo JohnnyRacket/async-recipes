@@ -119,6 +119,38 @@ function getLayoutedElements(
     }
   });
 
+  // Post-process: fix horizontal overlaps for nodes on the same row
+  // Dagre's X positions assume its own Y ranks, but we override Y with branchDepth,
+  // which can cause nodes dagre thought would be on different rows to overlap
+  const minHorizontalGap = 40;
+  const nodesByRow = new Map<number, typeof layoutedNodes>();
+  
+  layoutedNodes.forEach((node) => {
+    const row = node.position.y;
+    if (!nodesByRow.has(row)) {
+      nodesByRow.set(row, []);
+    }
+    nodesByRow.get(row)!.push(node);
+  });
+
+  nodesByRow.forEach((rowNodes) => {
+    if (rowNodes.length < 2) return;
+    
+    // Sort by X position
+    rowNodes.sort((a, b) => a.position.x - b.position.x);
+    
+    // Check and fix overlaps
+    for (let i = 1; i < rowNodes.length; i++) {
+      const prev = rowNodes[i - 1];
+      const curr = rowNodes[i];
+      const minX = prev.position.x + nodeWidth + minHorizontalGap;
+      
+      if (curr.position.x < minX) {
+        curr.position.x = minX;
+      }
+    }
+  });
+
   return { nodes: layoutedNodes, edges };
 }
 

@@ -29,6 +29,7 @@ export type Recipe = {
   ingredients: string[];
   ingredientCategories?: Record<string, IngredientCategory>; // maps short ingredient names to their category
   steps: RecipeStep[];
+  calories?: number; // estimated calories per serving
   createdAt: number;
   featured?: boolean;
 };

@@ -30,6 +30,7 @@ export const RecipeSchema = z.object({
   ingredients: z.array(z.string()).describe('Complete list of ingredients with EXACT quantities and measurements (e.g., "2 cups flour", "1 lb chicken breast", "3 tbsp olive oil"). Include preparation notes like "diced" or "minced". This is the shopping list.'),
   ingredientCategories: z.record(z.string(), IngredientCategorySchema).optional().describe('Maps each unique short ingredient name to its category for color-coding. Keys should match the short ingredient names used in steps.'),
   steps: z.array(RecipeStepSchema).describe('Ordered cooking steps with dependency information for parallelization. Analyze which steps can run in parallel (e.g., prep work) vs which must wait for others (e.g., cannot add sauce until onions are sautéed).'),
+  calories: z.number().optional().describe('REQUIRED: Estimated calories per serving. ALWAYS provide this field - extract from webpage if available (look for "calories", "kcal", "nutrition facts"), or estimate based on ingredients, cooking method, and typical serving sizes. Provide a reasonable estimate even if not explicitly stated (e.g., pasta: 400-600, salads: 200-400, desserts: 300-500, meat: 500-800 per serving). Round to nearest 10-50 calories.'),
 });
 
 export type RecipeInput = z.infer<typeof RecipeSchema>;

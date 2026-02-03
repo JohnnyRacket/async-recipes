@@ -72,6 +72,7 @@ REQUIRED FIELDS (you MUST provide all of these if isValidRecipe=true):
 - ingredients: Array of ingredients with quantities (REQUIRED, must not be empty)
 - steps: Array of cooking steps (REQUIRED, must not be empty)
 - Each step MUST have: id (string like "step1"), text (the instruction), dependsOn (array, can be empty [])
+- calories: Estimated calories per serving (REQUIRED - always provide an estimate). Extract from webpage if available (look for "calories", "kcal", "nutrition", "nutrition facts"). If not found, estimate based on ingredients and typical serving sizes. Provide a reasonable estimate (e.g., pasta dishes: 400-600, salads: 200-400, desserts: 300-500, meat dishes: 500-800 per serving).
 
 OPTIONAL FIELDS (include if available):
 - imageUrl: Main recipe photo URL
@@ -146,6 +147,18 @@ Example ingredientCategories:
 IMAGE: If any of these image URLs appears to be the main recipe photo (not an ad, logo, or unrelated image), include it as imageUrl:
 ${imageUrls.join('\n')}
 
+CALORIES (REQUIRED - always provide):
+You MUST always provide a calories estimate. This is a required field.
+- FIRST: Look for explicit calorie information on the page (e.g., "350 calories", "450 kcal per serving", "nutrition facts", "calories per serving")
+- If found, use that exact number
+- If NOT found, estimate based on:
+  * Main ingredients (meat/protein: ~200-300 cal, carbs/grains: ~150-200 cal, vegetables: ~50-100 cal per serving)
+  * Cooking method (fried adds more calories than baked/grilled)
+  * Typical serving sizes
+  * Dish type: pasta dishes: 400-600, salads: 200-400, desserts: 300-500, meat dishes: 500-800, soups: 150-300, sandwiches: 400-600
+- ALWAYS provide a reasonable estimate even if not explicitly stated (aim for accuracy within 100-200 calories)
+- Round to the nearest 10-50 calories (e.g., 425, 350, 580)
+
 FINAL VALIDATION CHECKLIST (if isValidRecipe=true):
 Before outputting, verify your recipe object has:
 ✓ title - non-empty string
@@ -155,6 +168,7 @@ Before outputting, verify your recipe object has:
   - id: string (e.g., "step1")
   - text: string (the instruction)
   - dependsOn: array of step IDs (can be empty [])
+✓ calories - number (estimated if not explicitly stated)
 
 If any required field is missing or empty, set isValidRecipe=false instead.
 
