@@ -1,0 +1,48 @@
+---
+description: Async Recipes project context and architecture overview
+alwaysApply: true
+---
+
+# Async Recipes - Project Overview
+
+A Next.js 16 recipe app with AI-powered ingestion and parallel cooking visualization.
+
+## Tech Stack
+
+- **Next.js 16.1** with App Router (NOT Pages Router)
+- **React 19** with Server Components
+- **AI SDK 6** with Vercel AI Gateway
+- **Upstash Redis** for storage via `@upstash/redis`
+- **Zod 4** for schema validation
+- **Tailwind CSS v4** with `@tailwindcss/postcss`
+- **XY Flow** (`@xyflow/react`) for recipe step graph visualization
+
+## Key Architecture Decisions
+
+1. **Server Components by default** - Only use `'use client'` when needed for interactivity
+2. **Streaming UI** - Use `loading.tsx` files and Suspense for progressive rendering
+3. **Parallel routes** - Browse page uses `@list` and `@preview` slots for side-by-side layout
+4. **Server Actions** - Mutations go through `lib/actions.ts` with `'use server'`
+5. **Typed errors** - Use `lib/errors.ts` pattern with `AppError`, `ValidationError`, etc.
+
+## Directory Structure
+
+```
+app/
+  api/           → Route handlers (AI endpoints)
+  recipes/
+    (browse)/    → Parallel route group with @list and @preview slots
+    [id]/        → Individual recipe pages
+  add/           → Recipe submission form
+components/      → React components (cooking-mode/, ui/)
+lib/             → Core utilities (actions, errors, kv, schemas, types)
+hooks/           → Custom React hooks
+proxy.ts         → Request proxy (rate limiting) - NOT middleware.ts
+```
+
+## Import Aliases
+
+Always use `@/` for imports:
+- `@/lib/...` for utilities
+- `@/components/...` for components
+- `@/hooks/...` for hooks

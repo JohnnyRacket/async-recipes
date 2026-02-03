@@ -1,0 +1,111 @@
+---
+description: Typed error handling patterns
+globs: "**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# Error Handling Patterns
+
+This project uses typed errors from `lib/errors.ts`.
+
+## Error Classes
+
+```typescript
+import { 
+  AppError,        // Base class for all app errors
+  ValidationError, // Invalid input (400)
+  NotFoundError,   // Resource not found (404)
+  RateLimitError,  // Too many requests (429)
+  FetchError,      // External fetch failed (502)
+} from '@/lib/errors';
+```
+
+## Throwing Typed Errors
+
+```typescript
+// Validation errors
+if (!url || typeof url !== 'string') {
+  throw new ValidationError('URL is required', 'MISSING_URL');
+}
+
+// Not found errors
+if (!recipe) {
+  throw new NotFoundError('Recipe not found', 'RECIPE_NOT_FOUND');
+}
+
+// Fetch errors (for external API calls)
+if (!response.ok) {
+  throw new FetchError('Failed to fetch recipe page', 'FETCH_FAILED');
+}
+```
+
+## Handling Errors in Route Handlers
+
+```typescript
+import { isAppError, errorResponse, toAppError } from '@/lib/errors';
+
+export async function POST(req: Request) {
+  try {
+    // ... your logic
+  } catch (error) {
+    // Handle known application errors
+    if (isAppError(error)) {
+      return errorResponse(error);
+    }
+    
+    // Log unexpected errors
+    console.error('Unexpected error:', error);
+    
+    // Convert unknown errors to AppError
+    const appError = toAppError(error, 'Operation failed');
+    return errorResponse(appError);
+  }
+}
+```
+
+## Error Boundaries in React
+
+Use `error.tsx` files for route-level error boundaries:
+
+```typescript
+// app/recipes/[id]/error.tsx
+'use client';
+
+export default function Error({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
+  return (
+    <div>
+      <h2>Something went wrong</h2>
+      <button onClick={reset}>Try again</button>
+    </div>
+  );
+}
+```
+
+## Server Action Error Pattern
+
+```typescript
+interface ActionResult {
+  success: boolean;
+  id?: string;
+  error?: string;
+}
+
+export async function myAction(input: Input): Promise<ActionResult> {
+  try {
+    // ... logic
+    return { success: true, id };
+  } catch (error) {
+    console.error('Action failed:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    };
+  }
+}
+```

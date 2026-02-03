@@ -1,0 +1,82 @@
+---
+description: Next.js 16 specific patterns and breaking changes
+globs: "**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# Next.js 16 Patterns
+
+## CRITICAL: Middleware Renamed to Proxy
+
+In Next.js 16, `middleware.ts` is **DEPRECATED**. Use `proxy.ts` instead.
+
+```typescript
+// ❌ DEPRECATED - middleware.ts
+export function middleware(request: NextRequest) { ... }
+
+// ✅ CORRECT - proxy.ts
+export function proxy(request: NextRequest) { ... }
+```
+
+The file MUST be named `proxy.ts` at the project root, and the exported function MUST be named `proxy`.
+
+## CRITICAL: revalidateTag Takes 2 Parameters
+
+The single-parameter version is **DEPRECATED**. Always pass the cache scope as second param.
+
+```typescript
+// ❌ DEPRECATED
+revalidateTag('recipes');
+
+// ✅ CORRECT - specify cache scope
+revalidateTag('recipes', 'max');    // Revalidate all caches with this tag
+revalidateTag('recipes', 'local');  // Revalidate only local cache
+```
+
+## Parallel Routes
+
+This project uses parallel routes in `app/recipes/(browse)/`:
+
+```
+(browse)/
+  @list/        → Left panel slot
+    default.tsx → Fallback when no match
+    page.tsx    → Main list view
+  @preview/     → Right panel slot
+    default.tsx → Fallback when no match
+  layout.tsx    → Renders: {children} {list} {preview}
+```
+
+Every parallel route slot needs a `default.tsx` for unmatched states.
+
+## Route Handlers
+
+API routes use `route.ts` files with named exports:
+
+```typescript
+// app/api/example/route.ts
+export async function POST(req: Request) {
+  // Handle POST
+}
+
+export async function GET(req: Request) {
+  // Handle GET
+}
+```
+
+## Loading States
+
+Use `loading.tsx` for streaming Suspense boundaries:
+
+```typescript
+// app/recipes/[id]/loading.tsx
+export default function Loading() {
+  return <RecipeSkeleton />;
+}
+```
+
+## Server vs Client Components
+
+- Default: Server Components (no directive needed)
+- Client: Add `'use client'` at top of file
+- Server Actions: Add `'use server'` at top of file or inline in function

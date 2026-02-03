@@ -1,0 +1,94 @@
+---
+description: AI SDK 6 patterns for structured output and streaming
+globs: "app/api/**/route.ts"
+alwaysApply: false
+---
+
+# AI SDK 6 Patterns
+
+This project uses AI SDK 6 with Vercel AI Gateway.
+
+## CRITICAL: streamObject is Deprecated
+
+Use `streamText` with `Output.object()` instead:
+
+```typescript
+// ❌ DEPRECATED (AI SDK 5)
+import { streamObject } from 'ai';
+const result = streamObject({
+  model,
+  schema: RecipeSchema,
+  prompt: '...'
+});
+
+// ✅ CORRECT (AI SDK 6)
+import { streamText, Output } from 'ai';
+const result = streamText({
+  model: gateway('openai/gpt-oss-20b'),
+  output: Output.object({ schema: RecipeSchema }),
+  prompt: '...'
+});
+```
+
+## Using Tools with Structured Output
+
+```typescript
+import { streamText, Output, tool, stepCountIs } from 'ai';
+import { z } from 'zod';
+import { gateway } from '@ai-sdk/gateway';
+
+const result = streamText({
+  model: gateway('openai/gpt-oss-20b'),
+  output: Output.object({ schema: MySchema }),
+  tools: {
+    myTool: tool({
+      description: 'What this tool does',
+      inputSchema: z.object({
+        param: z.string().describe('Parameter description'),
+      }),
+      execute: async ({ param }) => {
+        return { result: 'value' };
+      },
+    }),
+  },
+  stopWhen: stepCountIs(3), // Limit tool call iterations
+  prompt: `Your prompt here`,
+});
+
+return result.toTextStreamResponse();
+```
+
+## Gateway Model Format
+
+```typescript
+import { gateway } from '@ai-sdk/gateway';
+
+// Format: provider/model-name
+gateway('openai/gpt-oss-20b')
+gateway('anthropic/claude-3-sonnet')
+```
+
+## Zod Schemas for AI Output
+
+When defining schemas for AI structured output, add `.describe()` to help the model:
+
+```typescript
+export const RecipeStepSchema = z.object({
+  id: z.string().describe('Unique identifier like "step1", "step2"'),
+  text: z.string().describe('The instruction text'),
+  dependsOn: z.array(z.string()).describe('Step IDs that must complete first'),
+  duration: z.number().optional().describe('Time in minutes'),
+});
+```
+
+## Client-Side Streaming with useObject
+
+```typescript
+'use client';
+import { experimental_useObject as useObject } from '@ai-sdk/react';
+
+const { object, isLoading, error } = useObject({
+  api: '/api/my-endpoint',
+  schema: MySchema,
+});
+```

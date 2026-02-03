@@ -1,0 +1,84 @@
+---
+description: Recipe domain model and step dependency logic
+globs: "**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# Recipe Domain Model
+
+## Core Types
+
+```typescript
+type RecipeStep = {
+  id: string;           // "step1", "step2", etc.
+  text: string;         // Instruction text
+  dependsOn: string[];  // Step IDs that must complete first (DAG model)
+  duration?: number;    // Estimated minutes
+  isPassive?: boolean;  // true = hands-off (simmer, bake, rest)
+  needsTimer?: boolean; // true = precise timing (bake 25 min)
+  ingredients?: string[]; // Short names used in this step
+  temperature?: string;   // "375°F", "medium-high heat"
+};
+
+type Recipe = {
+  id: string;
+  title: string;
+  description: string;
+  ingredients: string[];           // Full list with quantities
+  ingredientCategories?: Record<string, IngredientCategory>;
+  steps: RecipeStep[];
+  calories?: number;
+  // ...
+};
+```
+
+## Step Dependencies (DAG Model)
+
+Steps form a Directed Acyclic Graph for parallelization:
+
+```typescript
+// Can start immediately (no dependencies)
+{ id: "step1", dependsOn: [], text: "Preheat oven to 375°F" }
+{ id: "step2", dependsOn: [], text: "Chop vegetables" }
+
+// Must wait for step2
+{ id: "step3", dependsOn: ["step2"], text: "Sauté vegetables" }
+
+// Must wait for multiple steps
+{ id: "step4", dependsOn: ["step1", "step3"], text: "Bake for 25 minutes" }
+```
+
+## Passive vs Active Steps
+
+- **Passive** (`isPassive: true`): Hands-off, can multitask
+  - Simmering, boiling water, baking, resting meat, marinating, preheating
+
+- **Active** (`isPassive: false`): Requires attention
+  - Chopping, stirring, sautéing, mixing, plating
+
+## Timer Logic
+
+- **needsTimer: true**: User needs an alert when time is up
+  - "Bake for 25 minutes" → Timer alerts at 25 min
+  - "Simmer for 10 minutes" → Timer alerts at 10 min
+
+- **needsTimer: false**: Time is just an estimate
+  - "Chop onions" (~3 min) → No timer needed
+  - "Sauté until golden" (~5 min) → Visual cue, not time-based
+
+## Ingredient Categories
+
+For color-coding in the UI:
+
+```typescript
+type IngredientCategory = 
+  | 'meat'      // beef, chicken, pork, bacon
+  | 'seafood'   // fish, shrimp, salmon
+  | 'vegetable' // onion, garlic, tomato
+  | 'dairy'     // butter, milk, cheese, egg
+  | 'grain'     // flour, bread, pasta, rice
+  | 'sauce'     // soy sauce, vinegar, broth
+  | 'spice'     // salt, pepper, cumin, sugar
+  | 'chocolate' // chocolate, cocoa
+  | 'other';
+```
