@@ -22,12 +22,15 @@ function cleanupOldEntries() {
 const rateLimitedPaths = ['/api/ingest', '/api/enhance'];
 
 export function proxy(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+  
   // Only rate limit AI endpoints
   const shouldRateLimit = rateLimitedPaths.some(path => 
-    request.nextUrl.pathname.startsWith(path)
+    pathname.startsWith(path)
   );
   
   if (!shouldRateLimit) {
+    console.log(`[PROXY] Request to ${pathname} - not rate limited`);
     return NextResponse.next();
   }
 
@@ -38,25 +41,31 @@ export function proxy(request: NextRequest) {
   const now = Date.now();
   const record = rateLimit.get(ip);
 
+  console.log(`[PROXY] Rate-limited request: ${pathname} from IP: ${ip}`);
+
   // Periodically cleanup (roughly every 100 requests)
   if (Math.random() < 0.01) {
+    console.log(`[PROXY] Running cleanup of old rate limit entries`);
     cleanupOldEntries();
   }
 
   if (!record || now - record.timestamp > WINDOW_MS) {
     // New window - reset count
     rateLimit.set(ip, { count: 1, timestamp: now });
+    console.log(`[PROXY] New rate limit window for IP: ${ip} (1/${MAX_REQUESTS} requests)`);
     return NextResponse.next();
   }
 
   if (record.count >= MAX_REQUESTS) {
     // Rate limit exceeded
+    const retryAfter = Math.ceil((record.timestamp + WINDOW_MS - now) / 1000);
+    console.log(`[PROXY] Rate limit exceeded for IP: ${ip} on ${pathname} (${record.count}/${MAX_REQUESTS} requests). Retry after ${retryAfter}s`);
     return NextResponse.json(
       { error: 'Rate limit exceeded. Please try again later.' },
       { 
         status: 429,
         headers: {
-          'Retry-After': String(Math.ceil((record.timestamp + WINDOW_MS - now) / 1000)),
+          'Retry-After': String(retryAfter),
         },
       }
     );
@@ -64,6 +73,7 @@ export function proxy(request: NextRequest) {
 
   // Increment count
   record.count++;
+  console.log(`[PROXY] Request allowed for IP: ${ip} on ${pathname} (${record.count}/${MAX_REQUESTS} requests)`);
   return NextResponse.next();
 }
 
