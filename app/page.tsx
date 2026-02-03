@@ -18,7 +18,7 @@ export default async function Home() {
           🍴 Forked Recipes
         </h1>
         <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-          Recipes for engineers: visualize cooking as a dependency graph to maximize parallelism and share your favorite dishes.
+          Fork recipes. Cook in parallel with friends. Share your favorite recipes.
         </p>
         <div className="flex justify-center gap-4 pt-4">
           <Button asChild size="lg">
