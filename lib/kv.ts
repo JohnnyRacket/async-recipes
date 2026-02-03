@@ -193,7 +193,7 @@ export async function syncRecipeIds(): Promise<number> {
   // Delete the old set and rebuild it
   await redis.del(RECIPE_IDS_KEY);
   if (recipeIds.length > 0) {
-    await redis.sadd(RECIPE_IDS_KEY, ...recipeIds);
+    await redis.sadd(RECIPE_IDS_KEY, ...(recipeIds as [string, ...string[]]));
   }
   
   return recipeIds.length;
