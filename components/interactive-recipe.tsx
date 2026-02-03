@@ -1,11 +1,13 @@
 'use client';
 
 import { useState } from 'react';
+import { ChefHat } from 'lucide-react';
 import { Recipe } from '@/lib/types';
 import { useCookingState } from '@/hooks/use-cooking-state';
 import { RecipeGraph } from '@/components/recipe-graph';
 import { CookingMode } from '@/components/cooking-mode';
 import { Button } from '@/components/ui/button';
+import { getStartingSteps } from '@/lib/utils';
 
 interface InteractiveRecipeProps {
   recipe: Recipe;
@@ -17,7 +19,7 @@ export function InteractiveRecipe({ recipe }: InteractiveRecipeProps) {
   const cookingState = useCookingState(recipe.steps);
   
   // Calculate how many steps can start immediately
-  const parallelSteps = recipe.steps.filter((s) => s.dependsOn.length === 0).length;
+  const parallelSteps = getStartingSteps(recipe.steps).length;
 
   return (
     <div className="space-y-6">
@@ -38,7 +40,7 @@ export function InteractiveRecipe({ recipe }: InteractiveRecipeProps) {
           onClick={() => setShowCookingMode(true)}
           className="h-14 px-8 text-lg bg-green-600 hover:bg-green-700 text-white shadow-lg"
         >
-          <ChefIcon className="w-6 h-6 mr-2" />
+          <ChefHat className="w-6 h-6 mr-2" />
           Start Cooking
         </Button>
       </div>
@@ -71,23 +73,5 @@ export function InteractiveRecipe({ recipe }: InteractiveRecipeProps) {
         />
       )}
     </div>
-  );
-}
-
-function ChefIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-    >
-      <path
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M12 3c-1.5 0-2.8.5-3.8 1.3C7.2 3.5 6 3 4.5 3 2 3 0 5 0 7.5c0 1.9 1.2 3.5 2.8 4.2V19c0 1.1.9 2 2 2h14.4c1.1 0 2-.9 2-2v-7.3c1.6-.7 2.8-2.3 2.8-4.2C24 5 22 3 19.5 3c-1.5 0-2.7.5-3.7 1.3C14.8 3.5 13.5 3 12 3z"
-      />
-    </svg>
   );
 }

@@ -4,6 +4,7 @@ import { useState, useTransition, useEffect, useCallback, useMemo } from 'react'
 import { useRouter, usePathname } from 'next/navigation';
 import Image from 'next/image';
 import { experimental_useObject as useObject } from '@ai-sdk/react';
+import { Clock, Thermometer, Timer } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -27,6 +28,7 @@ function AddRecipeForm({ onReset }: AddRecipeFormProps) {
   const [isEnhanced, setIsEnhanced] = useState(false);
   const [extractionFailed, setExtractionFailed] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
+  const [hasAttemptedExtraction, setHasAttemptedExtraction] = useState(false);
 
   // Initial extraction with validation
   const { 
@@ -46,6 +48,12 @@ function AddRecipeForm({ onReset }: AddRecipeFormProps) {
   // Check for validation failure (AI determined content is not a valid recipe)
   const isInvalidRecipe = !isExtracting && ingestResult?.isValidRecipe === false;
   const invalidReason = ingestResult?.invalidReason;
+  
+  // Check for empty response (200 but no data)
+  // Only show this error if we've actually attempted an extraction
+  const isEmptyResponse = hasAttemptedExtraction && !isExtracting && !extractError && ingestResult === undefined;
+  // Also check if isValidRecipe is true but recipe is missing/empty
+  const isValidButNoRecipe = hasAttemptedExtraction && !isExtracting && !extractError && ingestResult?.isValidRecipe === true && !extractedObject;
 
   // Enhancement pass
   const { 
@@ -154,18 +162,36 @@ function AddRecipeForm({ onReset }: AddRecipeFormProps) {
 
   // Detect extraction failure (completed but no useful data)
   useEffect(() => {
-    if (!isExtracting && extractedObject !== undefined && !extractError) {
+    // Derive extractedObject inside effect to avoid dependency issues
+    const extractedObjectFromResult = ingestResult?.recipe;
+    
+    if (!isExtracting && !extractError && hasAttemptedExtraction) {
       // Check if extraction completed but returned nothing useful
-      const hasUsefulData = extractedObject?.title || extractedObject?.steps?.length;
-      if (!hasUsefulData && url.trim()) {
+      // Case 1: ingestResult is undefined (empty response)
+      // Case 2: extractedObject exists but has no useful data
+      if (ingestResult === undefined && url.trim()) {
+        setExtractionFailed(true);
+      } else if (extractedObjectFromResult !== undefined) {
+        const hasUsefulData = extractedObjectFromResult?.title || extractedObjectFromResult?.steps?.length;
+        if (!hasUsefulData && url.trim()) {
+          setExtractionFailed(true);
+        } else {
+          setExtractionFailed(false);
+        }
+      } else if (ingestResult?.isValidRecipe === true && !extractedObjectFromResult && url.trim()) {
+        // Valid recipe flag but no recipe data
         setExtractionFailed(true);
       } else {
         setExtractionFailed(false);
       }
+    } else if (extractError) {
+      setExtractionFailed(false);
     }
-  }, [isExtracting, extractedObject, extractError, url]);
+  }, [isExtracting, extractError, url, ingestResult, hasAttemptedExtraction]);
 
   const handleReset = useCallback(() => {
+    // Reset extraction attempt tracking
+    setHasAttemptedExtraction(false);
     // Call the onReset callback to regenerate the wrapper's key
     // This will remount the form with fresh state
     if (onReset) {
@@ -178,6 +204,7 @@ function AddRecipeForm({ onReset }: AddRecipeFormProps) {
     setSaveError(null);
     setIsEnhanced(false);
     setExtractionFailed(false);
+    setHasAttemptedExtraction(true);
     submitExtract({ url: url.trim() });
   }, [url, submitExtract]);
 
@@ -187,6 +214,7 @@ function AddRecipeForm({ onReset }: AddRecipeFormProps) {
     setExtractionFailed(false);
     setSaveError(null);
     setIsEnhanced(false);
+    setHasAttemptedExtraction(true);
     submitExtract({ url: url.trim() });
   }, [url, submitExtract]);
 
@@ -331,14 +359,18 @@ function AddRecipeForm({ onReset }: AddRecipeFormProps) {
               </Button>
             </div>
           )}
-          {extractionFailed && !error && !isInvalidRecipe && (
+          {(extractionFailed || isEmptyResponse || isValidButNoRecipe) && !error && !isInvalidRecipe && (
             <div className="flex items-center justify-between bg-amber-100 dark:bg-amber-950 p-3 rounded-md">
               <div>
                 <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
-                  Extraction returned no data
+                  {isEmptyResponse || isValidButNoRecipe 
+                    ? 'Received empty response from server'
+                    : 'Extraction returned no data'}
                 </p>
                 <p className="text-xs text-amber-600 dark:text-amber-400">
-                  The AI couldn&apos;t extract a recipe from this page. This can happen with some websites.
+                  {isEmptyResponse || isValidButNoRecipe
+                    ? 'The server returned a successful response but no recipe data. This may be a temporary issue.'
+                    : 'The AI couldn&apos;t extract a recipe from this page. This can happen with some websites.'}
                   {retryCount > 0 && ` (Attempt ${retryCount + 1})`}
                 </p>
               </div>
@@ -365,7 +397,7 @@ function AddRecipeForm({ onReset }: AddRecipeFormProps) {
       </Card>
 
       {/* Streaming Results Section */}
-      {(isLoading || object) && !isInvalidRecipe && (
+      {(isLoading || object) && !isInvalidRecipe && !isEmptyResponse && !isValidButNoRecipe && (
         <Card className="overflow-hidden pt-0">
           {/* Hero Image */}
           <div className="relative w-full h-56 bg-gradient-to-br from-orange-100 to-amber-50 dark:from-orange-950 dark:to-amber-900">
@@ -492,13 +524,13 @@ function AddRecipeForm({ onReset }: AddRecipeFormProps) {
                           <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted-foreground">
                             {step.duration && (
                               <span className="inline-flex items-center gap-1">
-                                <ClockIcon className="w-3 h-3" />
+                                <Clock className="w-3 h-3" />
                                 {step.duration} min
                               </span>
                             )}
                             {step.temperature && (
                               <span className="inline-flex items-center gap-1 text-orange-600">
-                                <ThermometerIcon className="w-3 h-3" />
+                                <Thermometer className="w-3 h-3" />
                                 {step.temperature}
                               </span>
                             )}
@@ -507,7 +539,7 @@ function AddRecipeForm({ onReset }: AddRecipeFormProps) {
                             )}
                             {step.needsTimer && (
                               <span className="inline-flex items-center gap-1 text-purple-600">
-                                <TimerIcon className="w-3 h-3" />
+                                <Timer className="w-3 h-3" />
                                 Timer
                               </span>
                             )}
@@ -607,35 +639,6 @@ function AddRecipeForm({ onReset }: AddRecipeFormProps) {
         </Card>
       )}
     </div>
-  );
-}
-
-// Compact icon components for step metadata
-function ClockIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <circle cx="12" cy="12" r="10" strokeWidth="2" />
-      <path strokeWidth="2" strokeLinecap="round" d="M12 6v6l4 2" />
-    </svg>
-  );
-}
-
-function ThermometerIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z" />
-    </svg>
-  );
-}
-
-function TimerIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <circle cx="12" cy="13" r="8" strokeWidth="2" />
-      <path strokeWidth="2" strokeLinecap="round" d="M12 9v4l2 2" />
-      <path strokeWidth="2" strokeLinecap="round" d="M9 2h6" />
-      <path strokeWidth="2" strokeLinecap="round" d="M12 2v2" />
-    </svg>
   );
 }
 

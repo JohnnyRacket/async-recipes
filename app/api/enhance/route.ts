@@ -1,67 +1,38 @@
 import { streamObject } from 'ai';
 import { gateway } from '@ai-sdk/gateway';
 import { RecipeSchema, RecipeInput } from '@/lib/schemas';
+import { ValidationError, isAppError, errorResponse, toAppError } from '@/lib/errors';
+import { sanitizeUrl, fetchRecipePage, extractImageUrls, stripHtml } from '@/lib/utils';
 
 // Note: Edge runtime removed as it's incompatible with cacheComponents.
 // Node.js runtime still provides good streaming performance.
 
 export async function POST(req: Request) {
   try {
-    const { url, existingRecipe } = await req.json() as { 
+    const { url: rawUrl, existingRecipe } = await req.json() as { 
       url: string; 
       existingRecipe: Partial<RecipeInput>;
     };
 
-    if (!url) {
-      return new Response(JSON.stringify({ error: 'URL is required' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
+    if (!rawUrl || typeof rawUrl !== 'string') {
+      throw new ValidationError('URL is required', 'MISSING_URL');
     }
 
     if (!existingRecipe) {
-      return new Response(JSON.stringify({ error: 'Existing recipe data is required' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      throw new ValidationError('Existing recipe data is required', 'MISSING_RECIPE_DATA');
     }
+
+    // Sanitize the URL to prevent SSRF
+    const url = sanitizeUrl(rawUrl.trim());
 
     // Fetch the recipe page content (server-side to avoid CORS)
-    // Use no-store to always fetch fresh content from external recipe pages
-    const pageResponse = await fetch(url, {
-      cache: 'no-store',
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; AsyncRecipes/1.0)',
-      },
-    });
-
-    if (!pageResponse.ok) {
-      return new Response(
-        JSON.stringify({ error: `Failed to fetch URL: ${pageResponse.status}` }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const html = await pageResponse.text();
+    const html = await fetchRecipePage(url);
 
     // Extract potential image URLs before stripping HTML
-    const imageMatches = html.match(/<img[^>]+src=["']([^"']+)["'][^>]*>/gi) || [];
-    const imageUrls = imageMatches
-      .map((img) => {
-        const match = img.match(/src=["']([^"']+)["']/i);
-        return match ? match[1] : null;
-      })
-      .filter((imgUrl): imgUrl is string => imgUrl !== null && imgUrl.startsWith('http'))
-      .slice(0, 10); // Keep top 10 potential images for enhancement pass
+    const imageUrls = extractImageUrls(html, 10); // Keep top 10 potential images for enhancement pass
 
     // Strip HTML tags for cleaner input (basic cleanup)
-    const textContent = html
-      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-      .replace(/<[^>]+>/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .slice(0, 15000); // Limit to avoid token limits
+    const textContent = stripHtml(html);
 
     // Use AI SDK to stream structured recipe enhancement
     const result = streamObject({
@@ -154,10 +125,16 @@ ${textContent}`,
 
     return result.toTextStreamResponse();
   } catch (error) {
+    // Handle known application errors
+    if (isAppError(error)) {
+      return errorResponse(error);
+    }
+    
+    // Log unexpected errors for debugging
     console.error('Enhance error:', error);
-    return new Response(
-      JSON.stringify({ error: 'Failed to enhance recipe' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
+    
+    // Convert unknown errors to a generic AppError
+    const appError = toAppError(error, 'Failed to enhance recipe');
+    return errorResponse(appError);
   }
 }

@@ -1,6 +1,7 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import type { IngredientCategory } from "./types"
+import type { IngredientCategory, RecipeStep } from "./types"
+import { ValidationError, ExternalFetchError } from "./errors"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -73,4 +74,170 @@ export function getIngredientColors(
   // Fall back to keyword matching
   const category = inferCategoryFromKeywords(ingredient);
   return INGREDIENT_CATEGORY_COLORS[category];
+}
+
+/**
+ * Validates and sanitizes a URL to prevent SSRF attacks.
+ * @throws ValidationError if the URL is invalid or targets a blocked host
+ */
+export function sanitizeUrl(urlString: string): URL {
+  let url: URL;
+  
+  try {
+    url = new URL(urlString);
+  } catch {
+    throw new ValidationError('Invalid URL format', 'INVALID_URL_FORMAT');
+  }
+
+  // Only allow http/https protocols
+  if (!['http:', 'https:'].includes(url.protocol)) {
+    throw new ValidationError(
+      'Only HTTP and HTTPS URLs are allowed',
+      'INVALID_PROTOCOL'
+    );
+  }
+
+  const hostname = url.hostname.toLowerCase();
+
+  // Block localhost and loopback addresses
+  if (
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    hostname === '0.0.0.0' ||
+    hostname === '::1' ||
+    hostname === '[::1]'
+  ) {
+    throw new ValidationError(
+      'URLs targeting localhost are not allowed',
+      'BLOCKED_HOST'
+    );
+  }
+
+  // Block private IP ranges (RFC 1918)
+  const ipv4Match = hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (ipv4Match) {
+    const [, a, b, c] = ipv4Match.map(Number);
+    
+    // 10.0.0.0/8 (private)
+    if (a === 10) {
+      throw new ValidationError('Private IP addresses are not allowed', 'BLOCKED_HOST');
+    }
+    
+    // 172.16.0.0/12 (private)
+    if (a === 172 && b >= 16 && b <= 31) {
+      throw new ValidationError('Private IP addresses are not allowed', 'BLOCKED_HOST');
+    }
+    
+    // 192.168.0.0/16 (private)
+    if (a === 192 && b === 168) {
+      throw new ValidationError('Private IP addresses are not allowed', 'BLOCKED_HOST');
+    }
+    
+    // 169.254.0.0/16 (link-local, AWS metadata, etc.)
+    if (a === 169 && b === 254) {
+      throw new ValidationError('Link-local addresses are not allowed', 'BLOCKED_HOST');
+    }
+    
+    // 100.64.0.0/10 (carrier-grade NAT)
+    if (a === 100 && b >= 64 && b <= 127) {
+      throw new ValidationError('CGNAT addresses are not allowed', 'BLOCKED_HOST');
+    }
+  }
+
+  // Block common internal hostnames
+  const blockedHostPatterns = [
+    /^internal\./i,
+    /^intranet\./i,
+    /^private\./i,
+    /^corp\./i,
+    /\.local$/i,
+    /\.internal$/i,
+    /\.localdomain$/i,
+  ];
+
+  for (const pattern of blockedHostPatterns) {
+    if (pattern.test(hostname)) {
+      throw new ValidationError(
+        'Internal hostnames are not allowed',
+        'BLOCKED_HOST'
+      );
+    }
+  }
+
+  return url;
+}
+
+/**
+ * Extracts image URLs from HTML content.
+ * @param html - The HTML content to parse
+ * @param maxImages - Maximum number of images to return (default: 5)
+ * @returns Array of image URLs
+ */
+export function extractImageUrls(html: string, maxImages: number = 5): string[] {
+  const imageMatches = html.match(/<img[^>]+src=["']([^"']+)["'][^>]*>/gi) || [];
+  return imageMatches
+    .map((img) => {
+      const match = img.match(/src=["']([^"']+)["']/i);
+      return match ? match[1] : null;
+    })
+    .filter((url): url is string => url !== null && url.startsWith('http'))
+    .slice(0, maxImages);
+}
+
+/**
+ * Strips HTML tags and cleans up text content for AI processing.
+ * @param html - The HTML content to clean
+ * @param maxLength - Maximum length of the resulting text (default: 15000)
+ * @returns Cleaned text content
+ */
+export function stripHtml(html: string, maxLength: number = 15000): string {
+  return html
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, maxLength);
+}
+
+/**
+ * Fetches HTML content from a URL with proper error handling.
+ * @param url - The URL to fetch
+ * @returns The HTML content as a string
+ * @throws ExternalFetchError if the fetch fails
+ */
+export async function fetchRecipePage(url: URL): Promise<string> {
+  const pageResponse = await fetch(url.toString(), {
+    cache: 'no-store',
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (compatible; AsyncRecipes/1.0)',
+    },
+  });
+
+  if (!pageResponse.ok) {
+    throw new ExternalFetchError(
+      `Failed to fetch the recipe page (status: ${pageResponse.status})`,
+      'FETCH_FAILED'
+    );
+  }
+
+  return pageResponse.text();
+}
+
+/**
+ * Finds steps that can start immediately (have no dependencies).
+ * @param steps - Array of recipe steps
+ * @returns Array of steps that can start immediately
+ */
+export function getStartingSteps(steps: RecipeStep[]): RecipeStep[] {
+  return steps.filter((step) => step.dependsOn.length === 0);
+}
+
+/**
+ * Gets the IDs of steps that can start immediately (have no dependencies).
+ * @param steps - Array of recipe steps
+ * @returns Array of step IDs that can start immediately
+ */
+export function getStartingStepIds(steps: RecipeStep[]): string[] {
+  return steps.filter((step) => step.dependsOn.length === 0).map((step) => step.id);
 }

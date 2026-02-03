@@ -1,10 +1,11 @@
 'use client';
 
-import { Timer } from '@/hooks/use-cooking-state';
+import { Timer, Play, Pause, RotateCcw } from 'lucide-react';
+import { Timer as TimerType } from '@/hooks/use-cooking-state';
 import { Button } from '@/components/ui/button';
 
 interface StepTimerProps {
-  timer: Timer | undefined;
+  timer: TimerType | undefined;
   duration?: number; // default duration in minutes
   onStart: (minutes: number) => void;
   onPause: () => void;
@@ -45,7 +46,7 @@ export function StepTimer({
         onClick={() => onStart(duration)}
         className={isLarge ? 'text-lg px-6 py-4' : ''}
       >
-        <TimerIcon className={isLarge ? 'w-5 h-5 mr-2' : 'w-4 h-4 mr-2'} />
+        <Timer className={isLarge ? 'w-5 h-5 mr-2' : 'w-4 h-4 mr-2'} />
         Start {duration}m Timer
       </Button>
     );
@@ -84,7 +85,7 @@ export function StepTimer({
             size={isLarge ? 'lg' : 'sm'}
             onClick={onReset}
           >
-            <RefreshIcon className="w-4 h-4 mr-1" />
+            <RotateCcw className="w-4 h-4 mr-1" />
             Reset
           </Button>
         ) : isRunning ? (
@@ -93,7 +94,7 @@ export function StepTimer({
             size={isLarge ? 'lg' : 'sm'}
             onClick={onPause}
           >
-            <PauseIcon className="w-4 h-4 mr-1" />
+            <Pause className="w-4 h-4 mr-1" />
             Pause
           </Button>
         ) : (
@@ -103,7 +104,7 @@ export function StepTimer({
               size={isLarge ? 'lg' : 'sm'}
               onClick={onResume}
             >
-              <PlayIcon className="w-4 h-4 mr-1" />
+              <Play className="w-4 h-4 mr-1" />
               Resume
             </Button>
             <Button
@@ -111,76 +112,12 @@ export function StepTimer({
               size={isLarge ? 'lg' : 'sm'}
               onClick={onReset}
             >
-              <RefreshIcon className="w-4 h-4 mr-1" />
+              <RotateCcw className="w-4 h-4 mr-1" />
               Reset
             </Button>
           </>
         )}
       </div>
     </div>
-  );
-}
-
-// Simple icon components
-function TimerIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <circle cx="12" cy="13" r="8" strokeWidth="2" />
-      <path strokeWidth="2" strokeLinecap="round" d="M12 9v4l2 2" />
-      <path strokeWidth="2" strokeLinecap="round" d="M9 2h6" />
-      <path strokeWidth="2" strokeLinecap="round" d="M12 2v2" />
-    </svg>
-  );
-}
-
-function PlayIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      fill="currentColor"
-      viewBox="0 0 24 24"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <polygon points="5,3 19,12 5,21" />
-    </svg>
-  );
-}
-
-function PauseIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      fill="currentColor"
-      viewBox="0 0 24 24"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <rect x="6" y="4" width="4" height="16" />
-      <rect x="14" y="4" width="4" height="16" />
-    </svg>
-  );
-}
-
-function RefreshIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-      />
-    </svg>
   );
 }

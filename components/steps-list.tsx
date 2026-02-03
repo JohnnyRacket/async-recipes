@@ -1,3 +1,4 @@
+import { Clock, Thermometer, Timer } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { RecipeStep, IngredientCategory } from '@/lib/types';
 import { getIngredientColors } from '@/lib/utils';
@@ -28,7 +29,7 @@ export function StepsList({ steps, ingredientCategories }: StepsListProps) {
                   {/* Duration with clock icon */}
                   {step.duration && (
                     <span className="inline-flex items-center gap-1">
-                      <ClockIcon className="w-3.5 h-3.5" />
+                      <Clock className="w-3.5 h-3.5" />
                       {step.duration} min
                     </span>
                   )}
@@ -36,7 +37,7 @@ export function StepsList({ steps, ingredientCategories }: StepsListProps) {
                   {/* Temperature with thermometer icon */}
                   {step.temperature && (
                     <span className="inline-flex items-center gap-1 text-orange-600">
-                      <ThermometerIcon className="w-3.5 h-3.5" />
+                      <Thermometer className="w-3.5 h-3.5" />
                       {step.temperature}
                     </span>
                   )}
@@ -44,7 +45,7 @@ export function StepsList({ steps, ingredientCategories }: StepsListProps) {
                   {/* Passive indicator */}
                   {step.isPassive && (
                     <span className="inline-flex items-center gap-1 text-blue-600">
-                      <TimerIcon className="w-3.5 h-3.5" />
+                      <Timer className="w-3.5 h-3.5" />
                       Passive
                     </span>
                   )}
@@ -97,32 +98,5 @@ export function StepsList({ steps, ingredientCategories }: StepsListProps) {
         </ol>
       </CardContent>
     </Card>
-  );
-}
-
-// Compact icon components
-function ClockIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <circle cx="12" cy="12" r="10" strokeWidth="2" />
-      <path strokeWidth="2" strokeLinecap="round" d="M12 6v6l4 2" />
-    </svg>
-  );
-}
-
-function ThermometerIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z" />
-    </svg>
-  );
-}
-
-function TimerIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <circle cx="12" cy="13" r="8" strokeWidth="2" />
-      <path strokeWidth="2" strokeLinecap="round" d="M12 9v4l2 2M9 2h6" />
-    </svg>
   );
 }
