@@ -605,14 +605,16 @@ function AddRecipeForm({ onReset }: AddRecipeFormProps) {
             </div>
 
             {/* Action Buttons */}
-            {!isLoading && isComplete && (
+            {!isLoading && extractedObject && (
               <>
                 <Separator />
                 <div className="flex items-center justify-between gap-4">
                   <p className="text-sm text-muted-foreground">
                     {isEnhanced 
                       ? 'Recipe enhanced! Save it to view the dependency graph.'
-                      : 'Recipe extracted. Enhance to fill in missing details, or save now.'}
+                      : isComplete
+                        ? 'Recipe extracted. Enhance to fill in missing details, or save now.'
+                        : 'Recipe extraction incomplete. Enhance to fill in missing details.'}
                   </p>
                   <div className="flex gap-2">
                     {!isEnhanced && (
@@ -620,9 +622,11 @@ function AddRecipeForm({ onReset }: AddRecipeFormProps) {
                         Enhance Recipe
                       </Button>
                     )}
-                    <Button onClick={handleSave} disabled={isPending}>
-                      {isPending ? 'Saving...' : 'Save Recipe'}
-                    </Button>
+                    {isComplete && (
+                      <Button onClick={handleSave} disabled={isPending}>
+                        {isPending ? 'Saving...' : 'Save Recipe'}
+                      </Button>
+                    )}
                   </div>
                 </div>
                 {saveError && (

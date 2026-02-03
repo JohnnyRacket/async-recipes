@@ -1,8 +1,9 @@
-import { streamObject } from 'ai';
+import { streamText, Output, tool, stepCountIs } from 'ai';
+import { z } from 'zod';
 import { gateway } from '@ai-sdk/gateway';
 import { RecipeSchema, RecipeInput } from '@/lib/schemas';
 import { ValidationError, isAppError, errorResponse, toAppError } from '@/lib/errors';
-import { sanitizeUrl, fetchRecipePage, extractImageUrls, stripHtml } from '@/lib/utils';
+import { sanitizeUrl, fetchRecipePage, extractImageUrls, stripHtml, validateImageUrl } from '@/lib/utils';
 
 // Note: Edge runtime removed as it's incompatible with cacheComponents.
 // Node.js runtime still provides good streaming performance.
@@ -35,9 +36,22 @@ export async function POST(req: Request) {
     const textContent = stripHtml(html);
 
     // Use AI SDK to stream structured recipe enhancement
-    const result = streamObject({
+    // Using streamText with Output.object() (streamObject is deprecated in AI SDK 6)
+    const result = streamText({
       model: gateway('openai/gpt-oss-20b'),
-      schema: RecipeSchema,
+      output: Output.object({ schema: RecipeSchema }),
+      tools: {
+        validateImageUrl: tool({
+          description: 'Validate that an image URL is accessible and returns a valid image. Use this to verify a candidate image URL before including it as the recipe imageUrl. Returns whether the URL is valid and the content type.',
+          inputSchema: z.object({
+            url: z.string().url().describe('The image URL to validate'),
+          }),
+          execute: async ({ url }) => {
+            return await validateImageUrl(url);
+          },
+        }),
+      },
+      stopWhen: stepCountIs(3), // Allow up to 3 steps: initial + tool call + final output
       prompt: `You are FIXING and IMPROVING an existing recipe extraction. The initial extraction often has problems:
 - Missing steps (only captured some of the instructions)
 - Wrong or missing step dependencies
@@ -53,8 +67,8 @@ YOUR TASK: Compare the existing data against the ORIGINAL WEBPAGE and fix any is
 
 TITLE: "${existingRecipe.title || ''}" - Keep this exact title.
 
-IMAGE URL: ${existingRecipe.imageUrl ? `KEEP "${existingRecipe.imageUrl}" - This is already set and MUST appear in your output.` : 'MISSING - Find the main recipe photo below.'}
-Available images: ${imageUrls.join(', ')}
+IMAGE URL: ${existingRecipe.imageUrl ? `KEEP "${existingRecipe.imageUrl}" - This is already set and MUST appear in your output.` : `MISSING - You have a validateImageUrl tool to verify image URLs work. Use it to validate a candidate before including it.`}
+${!existingRecipe.imageUrl ? `Available images to validate: ${imageUrls.join(', ')}` : ''}
 
 DESCRIPTION: ${existingRecipe.description && existingRecipe.description.length >= 20 ? `Keep: "${existingRecipe.description}"` : 'MISSING - Write a 1-2 sentence description.'}
 
@@ -112,7 +126,7 @@ You MUST always provide a calories estimate. This is a required field.
 === FINAL VALIDATION ===
 Before outputting, verify:
 ✓ title is set
-✓ imageUrl is set (use "${existingRecipe.imageUrl || 'NONE'}" if nothing better)
+✓ imageUrl - ${existingRecipe.imageUrl ? `use "${existingRecipe.imageUrl}"` : 'OMIT this field entirely if no valid image URL was found (do NOT use placeholder strings like "NONE" or "null")'}
 ✓ description is set
 ✓ ingredients array has ALL ingredients from webpage
 ✓ steps array has ALL steps from webpage (not just what was in existing data)

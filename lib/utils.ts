@@ -169,19 +169,67 @@ export function sanitizeUrl(urlString: string): URL {
 
 /**
  * Extracts image URLs from HTML content.
+ * Handles modern lazy-loading patterns (data-src, data-lazy-src, srcset) 
+ * commonly used by WordPress and other CMS platforms.
  * @param html - The HTML content to parse
  * @param maxImages - Maximum number of images to return (default: 5)
  * @returns Array of image URLs
  */
 export function extractImageUrls(html: string, maxImages: number = 5): string[] {
-  const imageMatches = html.match(/<img[^>]+src=["']([^"']+)["'][^>]*>/gi) || [];
-  return imageMatches
-    .map((img) => {
-      const match = img.match(/src=["']([^"']+)["']/i);
-      return match ? match[1] : null;
-    })
-    .filter((url): url is string => url !== null && url.startsWith('http'))
-    .slice(0, maxImages);
+  const imageMatches = html.match(/<img[^>]*>/gi) || [];
+  const urls: string[] = [];
+  
+  for (const img of imageMatches) {
+    // Try different attributes in order of preference:
+    // 1. data-src (common lazy loading)
+    // 2. data-lazy-src (WordPress lazy loading)
+    // 3. srcset (responsive images - take the first/smallest URL)
+    // 4. src (standard attribute, but might be a placeholder)
+    
+    let url: string | null = null;
+    
+    // data-src
+    const dataSrcMatch = img.match(/data-src=["']([^"']+)["']/i);
+    if (dataSrcMatch && dataSrcMatch[1].startsWith('http')) {
+      url = dataSrcMatch[1];
+    }
+    
+    // data-lazy-src
+    if (!url) {
+      const dataLazySrcMatch = img.match(/data-lazy-src=["']([^"']+)["']/i);
+      if (dataLazySrcMatch && dataLazySrcMatch[1].startsWith('http')) {
+        url = dataLazySrcMatch[1];
+      }
+    }
+    
+    // srcset (extract first URL, which is usually the smallest/default)
+    if (!url) {
+      const srcsetMatch = img.match(/srcset=["']([^"']+)["']/i);
+      if (srcsetMatch) {
+        // srcset format: "url1 1x, url2 2x" or "url1 300w, url2 600w"
+        const firstUrl = srcsetMatch[1].split(',')[0].trim().split(/\s+/)[0];
+        if (firstUrl && firstUrl.startsWith('http')) {
+          url = firstUrl;
+        }
+      }
+    }
+    
+    // Standard src (skip data: URLs which are placeholders)
+    if (!url) {
+      const srcMatch = img.match(/src=["']([^"']+)["']/i);
+      if (srcMatch && srcMatch[1].startsWith('http') && !srcMatch[1].startsWith('data:')) {
+        url = srcMatch[1];
+      }
+    }
+    
+    if (url && !urls.includes(url)) {
+      urls.push(url);
+    }
+    
+    if (urls.length >= maxImages) break;
+  }
+  
+  return urls;
 }
 
 /**
@@ -240,4 +288,60 @@ export function getStartingSteps(steps: RecipeStep[]): RecipeStep[] {
  */
 export function getStartingStepIds(steps: RecipeStep[]): string[] {
   return steps.filter((step) => step.dependsOn.length === 0).map((step) => step.id);
+}
+
+/**
+ * Validates that an image URL is accessible and returns an actual image.
+ * Uses HEAD request to avoid downloading the full image.
+ * @param url - The image URL to validate
+ * @param timeoutMs - Timeout in milliseconds (default: 3000)
+ * @returns Object with isValid status, contentType, and optional error message
+ */
+export async function validateImageUrl(
+  url: string,
+  timeoutMs: number = 3000
+): Promise<{ isValid: boolean; contentType?: string; error?: string }> {
+  try {
+    // Basic URL validation
+    const parsed = new URL(url);
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      return { isValid: false, error: 'Invalid protocol - must be HTTP or HTTPS' };
+    }
+
+    const response = await fetch(url, {
+      method: 'HEAD',
+      signal: AbortSignal.timeout(timeoutMs),
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; AsyncRecipes/1.0)',
+      },
+    });
+
+    if (!response.ok) {
+      return { 
+        isValid: false, 
+        error: `HTTP ${response.status}: ${response.statusText}` 
+      };
+    }
+
+    const contentType = response.headers.get('content-type');
+    
+    // Check if content-type indicates an image
+    if (!contentType?.startsWith('image/')) {
+      return { 
+        isValid: false, 
+        contentType: contentType ?? undefined,
+        error: `Not an image - content type is ${contentType || 'unknown'}` 
+      };
+    }
+
+    return { isValid: true, contentType };
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.name === 'TimeoutError' || error.name === 'AbortError') {
+        return { isValid: false, error: 'Request timed out' };
+      }
+      return { isValid: false, error: error.message };
+    }
+    return { isValid: false, error: 'Unknown error' };
+  }
 }

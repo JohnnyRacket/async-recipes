@@ -1,8 +1,9 @@
-import { streamObject } from 'ai';
+import { streamText, Output, tool, stepCountIs } from 'ai';
+import { z } from 'zod';
 import { gateway } from '@ai-sdk/gateway';
 import { IngestResultSchema } from '@/lib/schemas';
 import { ValidationError, isAppError, errorResponse, toAppError } from '@/lib/errors';
-import { sanitizeUrl, fetchRecipePage, extractImageUrls, stripHtml } from '@/lib/utils';
+import { sanitizeUrl, fetchRecipePage, extractImageUrls, stripHtml, validateImageUrl } from '@/lib/utils';
 
 // Note: Edge runtime removed as it's incompatible with cacheComponents.
 // Node.js runtime still provides good streaming performance.
@@ -22,15 +23,28 @@ export async function POST(req: Request) {
     const html = await fetchRecipePage(url);
 
     // Extract potential image URLs before stripping HTML
-    const imageUrls = extractImageUrls(html, 5); // Keep top 5 potential images
+    const imageUrls = extractImageUrls(html, 10); // Keep top 10 potential images for tool to validate
 
     // Strip HTML tags for cleaner input (basic cleanup)
     const textContent = stripHtml(html);
 
     // Use AI SDK to stream structured recipe extraction with validation
-    const result = streamObject({
+    // Using streamText with Output.object() (streamObject is deprecated in AI SDK 6)
+    const result = streamText({
       model: gateway('openai/gpt-oss-20b'),
-      schema: IngestResultSchema,
+      output: Output.object({ schema: IngestResultSchema }),
+      tools: {
+        validateImageUrl: tool({
+          description: 'Validate that an image URL is accessible and returns a valid image. Use this to verify a candidate image URL before including it as the recipe imageUrl. Returns whether the URL is valid and the content type.',
+          inputSchema: z.object({
+            url: z.string().url().describe('The image URL to validate'),
+          }),
+          execute: async ({ url }) => {
+            return await validateImageUrl(url);
+          },
+        }),
+      },
+      stopWhen: stepCountIs(3), // Allow up to 3 steps: initial + tool call + final output
       prompt: `Analyze the following webpage and extract a recipe if one exists.
 
 FIRST: Determine if this page contains a legitimate cooking/food recipe.
@@ -118,8 +132,18 @@ Example ingredientCategories:
   "pepper": "spice"
 }
 
-IMAGE: If any of these image URLs appears to be the main recipe photo (not an ad, logo, or unrelated image), include it as imageUrl:
+IMAGE SELECTION:
+You have access to a tool called "validateImageUrl" that checks if an image URL is accessible and returns a valid image.
+
+Candidate image URLs found on the page:
 ${imageUrls.join('\n')}
+
+INSTRUCTIONS:
+1. Identify which URL(s) are most likely to be the main recipe photo (based on URL patterns - look for words like "recipe", "dish", "food", avoid "logo", "icon", "avatar", "ad", "banner")
+2. Call the validateImageUrl tool with your best candidate URL to verify it works
+3. If it returns isValid: true, use that URL as imageUrl
+4. If it returns isValid: false, try another candidate
+5. If no valid image is found, OMIT the imageUrl field entirely (do NOT use placeholder strings like "NONE", "null", or empty string)
 
 CALORIES (REQUIRED - always provide):
 You MUST always provide a calories estimate. This is a required field.
