@@ -27,7 +27,9 @@ export async function POST(req: Request) {
     }
 
     // Fetch the recipe page content (server-side to avoid CORS)
+    // Use no-store to always fetch fresh content from external recipe pages
     const pageResponse = await fetch(url, {
+      cache: 'no-store',
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; AsyncRecipes/1.0)',
       },
