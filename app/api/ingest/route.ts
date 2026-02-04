@@ -31,7 +31,7 @@ export async function POST(req: Request) {
     // Use AI SDK to stream structured recipe extraction with validation
     // Using streamText with Output.object() (streamObject is deprecated in AI SDK 6)
     const result = streamText({
-      model: gateway('openai/gpt-oss-120b'),
+      model: gateway('openai/gpt-oss-20b'),
       output: Output.object({ schema: IngestResultSchema }),
       tools: {
         validateImageUrl: tool({
