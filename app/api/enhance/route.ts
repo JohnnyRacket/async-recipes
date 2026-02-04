@@ -38,7 +38,7 @@ export async function POST(req: Request) {
     // Use AI SDK to stream structured recipe enhancement
     // Using streamText with Output.object() (streamObject is deprecated in AI SDK 6)
     const result = streamText({
-      model: gateway('openai/gpt-oss-120b'),
+      model: gateway('deepseek/deepseek-v3.2'),
       output: Output.object({ schema: RecipeSchema }),
       tools: {
         validateImageUrl: tool({
