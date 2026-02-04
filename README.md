@@ -11,7 +11,7 @@ A Next.js 16 application demonstrating modern React Server Components, streaming
 <img width="1440" height="810" alt="Image" src="https://github.com/user-attachments/assets/a308f4f9-8ca9-4a58-b065-d7b3dc928938" />
 <img width="1046" height="810" alt="Image" src="https://github.com/user-attachments/assets/2765c2b9-03f5-4ad0-a39c-0b10e6ef1381" />
 <img width="291" height="713" alt="Image" src="https://github.com/user-attachments/assets/2af980d8-3a3f-463b-98cd-fc9265706c6f" />
-<img width="393" height="555" alt="Image" src="https://github.com/user-attachments/assets/b32b7964-b1bd-4aa8-b82f-af58076fd501" />
+<img width="488" height="550" alt="Image" src="https://github.com/user-attachments/assets/cb555000-27a5-4e81-a07c-af472bc2238e" />
 
 ## Features
 
