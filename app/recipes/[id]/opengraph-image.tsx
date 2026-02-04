@@ -1,7 +1,6 @@
 import { ImageResponse } from 'next/og';
 import { getCachedRecipe } from '@/lib/kv';
 
-export const runtime = 'edge';
 export const alt = 'Recipe preview';
 export const size = {
   width: 1200,
