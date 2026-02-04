@@ -625,7 +625,7 @@ function AddRecipeForm({ onReset }: AddRecipeFormProps) {
             {!isLoading && extractedObject && (
               <>
                 <Separator />
-                <div className="flex items-center justify-between gap-4">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                   <p className="text-sm text-muted-foreground">
                     {isEnhanced 
                       ? 'Recipe enhanced! Save it to view the dependency graph.'
@@ -633,7 +633,7 @@ function AddRecipeForm({ onReset }: AddRecipeFormProps) {
                         ? 'Recipe extracted. Enhance to fill in missing details, or save now.'
                         : 'Recipe extraction incomplete. Enhance to fill in missing details.'}
                   </p>
-                  <div className="flex gap-2">
+                  <div className="flex flex-col gap-2 sm:flex-row">
                     {!isEnhanced && (
                       <Button variant="outline" onClick={handleEnhance} disabled={isPending}>
                         Enhance Recipe
