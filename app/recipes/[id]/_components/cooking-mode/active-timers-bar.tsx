@@ -2,7 +2,7 @@
 
 import { Play, Pause, RotateCcw } from 'lucide-react';
 import { RecipeStep } from '@/lib/types';
-import { Timer } from '@/hooks/use-cooking-state';
+import { Timer } from '../../_hooks/use-cooking-state';
 import { Button } from '@/components/ui/button';
 
 export interface ActiveTimersBarProps {

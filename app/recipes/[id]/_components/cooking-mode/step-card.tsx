@@ -11,7 +11,7 @@ import {
   Hourglass,
 } from 'lucide-react';
 import { RecipeStep, IngredientCategory } from '@/lib/types';
-import { Timer as TimerType } from '@/hooks/use-cooking-state';
+import { Timer as TimerType } from '../../_hooks/use-cooking-state';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { getIngredientColors } from '@/lib/utils';

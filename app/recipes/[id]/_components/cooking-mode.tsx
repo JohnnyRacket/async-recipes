@@ -3,9 +3,9 @@
 import { useEffect, useState } from 'react';
 import { X, ChevronDown } from 'lucide-react';
 import { RecipeStep, Recipe } from '@/lib/types';
-import { StepStatus, Timer } from '@/hooks/use-cooking-state';
+import { StepStatus, Timer } from '../_hooks/use-cooking-state';
 import { Button } from '@/components/ui/button';
-import { StepCard, UpNextCard, ActiveTimersBar } from '@/components/cooking-mode/index';
+import { StepCard, UpNextCard, ActiveTimersBar } from './cooking-mode/index';
 
 interface CookingModeProps {
   recipe: Recipe;

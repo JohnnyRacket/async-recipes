@@ -1,5 +1,5 @@
 import { RecipeStep } from '@/lib/types';
-import { StepStatus } from '@/hooks/use-cooking-state';
+import { StepStatus } from '../../_hooks/use-cooking-state';
 
 export interface UpNextCardProps {
   step: RecipeStep;

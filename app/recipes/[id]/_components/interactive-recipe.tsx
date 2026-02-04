@@ -3,9 +3,9 @@
 import { useState } from 'react';
 import { ChefHat } from 'lucide-react';
 import { Recipe } from '@/lib/types';
-import { useCookingState } from '@/hooks/use-cooking-state';
+import { useCookingState } from '../_hooks/use-cooking-state';
 import { RecipeGraph } from '@/components/recipe-graph';
-import { CookingMode } from '@/components/cooking-mode';
+import { CookingMode } from './cooking-mode';
 import { Button } from '@/components/ui/button';
 import { getStartingSteps } from '@/lib/utils';
 
