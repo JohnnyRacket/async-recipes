@@ -155,6 +155,19 @@ function AddRecipeForm({ onReset }: AddRecipeFormProps) {
   const isLoading = isExtracting || isEnhancing;
   const error = isEnhanced ? enhanceError : extractError;
 
+  // Validate imageUrl is a valid URL before using it
+  const isValidImageUrl = useMemo(() => {
+    if (!object?.imageUrl || typeof object.imageUrl !== 'string') return false;
+    const urlString = object.imageUrl.trim();
+    if (!urlString) return false;
+    try {
+      new URL(urlString);
+      return true;
+    } catch {
+      return false;
+    }
+  }, [object?.imageUrl]);
+
   // Check completeness - the merged object should have all required fields
   const objectIsComplete = object?.title && object?.ingredients?.length && object?.steps?.length;
   // Also track if we had complete data before enhancement (for fallback purposes)
@@ -401,10 +414,10 @@ function AddRecipeForm({ onReset }: AddRecipeFormProps) {
         <Card className="overflow-hidden pt-0">
           {/* Hero Image */}
           <div className="relative w-full h-56 bg-gradient-to-br from-orange-100 to-amber-50 dark:from-orange-950 dark:to-amber-900">
-            {object?.imageUrl ? (
+            {isValidImageUrl && object ? (
               <>
                 <Image 
-                  src={object.imageUrl} 
+                  src={object.imageUrl!} 
                   alt={object.title || 'Recipe'} 
                   fill
                   unoptimized
