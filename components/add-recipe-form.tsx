@@ -573,6 +573,10 @@ function AddRecipeForm({ onReset }: AddRecipeFormProps) {
                               {step.ingredients.filter(Boolean).map((ing, idx) => {
                                 if (!ing) return null;
                                 const colors = getIngredientColors(ing, object?.ingredientCategories as Record<string, IngredientCategory> | undefined);
+                                // Safety check: ensure colors object exists (shouldn't happen after fix, but defensive)
+                                if (!colors || !colors.bg || !colors.text) {
+                                  return null;
+                                }
                                 return (
                                   <span
                                     key={idx}

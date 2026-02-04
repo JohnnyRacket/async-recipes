@@ -66,14 +66,23 @@ export function getIngredientColors(
     const lower = ingredient.toLowerCase();
     for (const [name, category] of Object.entries(ingredientCategories)) {
       if (name.toLowerCase() === lower) {
-        return INGREDIENT_CATEGORY_COLORS[category];
+        // Validate category exists in our color map (handle invalid AI responses)
+        const colors = INGREDIENT_CATEGORY_COLORS[category];
+        if (colors) {
+          return colors;
+        }
+        // If category is invalid, fall through to keyword matching
+        break;
       }
     }
   }
   
   // Fall back to keyword matching
   const category = inferCategoryFromKeywords(ingredient);
-  return INGREDIENT_CATEGORY_COLORS[category];
+  const colors = INGREDIENT_CATEGORY_COLORS[category];
+  // This should always exist since inferCategoryFromKeywords always returns a valid category,
+  // but add a safety fallback just in case
+  return colors || INGREDIENT_CATEGORY_COLORS.other;
 }
 
 /**
