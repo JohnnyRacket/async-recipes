@@ -10,23 +10,35 @@ import { sanitizeUrl, fetchRecipePage, extractImageUrls, stripHtml, validateImag
 
 export async function POST(req: Request) {
   try {
-    const { url: rawUrl } = await req.json();
+    const { url: rawUrl, text: rawText } = await req.json();
 
-    if (!rawUrl || typeof rawUrl !== 'string') {
-      throw new ValidationError('URL is required', 'MISSING_URL');
+    if (!rawUrl && !rawText) {
+      throw new ValidationError('URL or text is required', 'MISSING_INPUT');
     }
 
-    // Sanitize the URL to prevent SSRF
-    const url = sanitizeUrl(rawUrl.trim());
+    let textContent: string;
+    let imageUrls: string[] = [];
 
-    // Fetch the recipe page content (server-side to avoid CORS)
-    const html = await fetchRecipePage(url);
+    if (rawText && typeof rawText === 'string') {
+      // Direct text input mode — use the pasted text as-is
+      textContent = rawText.trim().substring(0, 15000);
+    } else {
+      if (!rawUrl || typeof rawUrl !== 'string') {
+        throw new ValidationError('URL is required', 'MISSING_URL');
+      }
 
-    // Extract potential image URLs before stripping HTML
-    const imageUrls = extractImageUrls(html, 10); // Keep top 10 potential images for tool to validate
+      // Sanitize the URL to prevent SSRF
+      const url = sanitizeUrl(rawUrl.trim());
 
-    // Strip HTML tags for cleaner input (basic cleanup)
-    const textContent = stripHtml(html);
+      // Fetch the recipe page content (server-side to avoid CORS)
+      const html = await fetchRecipePage(url);
+
+      // Extract potential image URLs before stripping HTML
+      imageUrls = extractImageUrls(html, 10); // Keep top 10 potential images for tool to validate
+
+      // Strip HTML tags for cleaner input (basic cleanup)
+      textContent = stripHtml(html);
+    }
 
     // Use AI SDK to stream structured recipe extraction with validation
     // Using streamText with Output.object() (streamObject is deprecated in AI SDK 6)
