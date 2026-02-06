@@ -3,7 +3,9 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import { track } from '@vercel/analytics';
 import { ClipboardList, Beaker, Clock, Flame, Zap } from 'lucide-react';
+import { getCookieValue, AB_HOMEPAGE_COOKIE } from '@/lib/ab';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { RecipeImage } from '@/components/recipe-image';
 import { Recipe } from '@/lib/types';
@@ -64,11 +66,19 @@ export function RecipeCard({ recipe, previewMode = false }: RecipeCardProps) {
   // In preview mode on large screens, we update the URL to show the preview
   // On small screens (where preview panel is hidden), we navigate to full page
   const handleClick = (e: React.MouseEvent) => {
+    // A/B test tracking: only on homepage
+    if (window.location.pathname === '/') {
+      const variant = getCookieValue(AB_HOMEPAGE_COOKIE);
+      if (variant) {
+        track('recipe-click', { variant, recipeId: recipe.id });
+      }
+    }
+
     // On mobile, always navigate normally (no preview mode)
     if (isMobile) {
       return;
     }
-    
+
     if (previewMode) {
       e.preventDefault();
       router.push(getRecipeUrl(), { scroll: false });

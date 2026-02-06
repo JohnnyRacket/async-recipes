@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { AB_HOMEPAGE_COOKIE, getBucket } from '@/lib/ab';
 
 // Simple in-memory rate limiter
 // Note: For multi-region deployments, use Vercel KV with @upstash/ratelimit
@@ -23,12 +24,37 @@ const rateLimitedPaths = ['/api/ingest', '/api/enhance'];
 
 export function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
-  
+
+  // A/B test: assign homepage variant and rewrite to /home/[variant]
+  if (pathname === '/') {
+    let variant = request.cookies.get(AB_HOMEPAGE_COOKIE)?.value;
+    let isNew = false;
+
+    if (variant !== 'a' && variant !== 'b') {
+      variant = getBucket(['a', 'b']);
+      isNew = true;
+    }
+
+    const url = request.nextUrl.clone();
+    url.pathname = `/home/${variant}`;
+    const response = NextResponse.rewrite(url);
+
+    if (isNew) {
+      response.cookies.set(AB_HOMEPAGE_COOKIE, variant, {
+        maxAge: 60 * 60 * 24 * 30, // 30 days
+        path: '/',
+        sameSite: 'lax',
+      });
+    }
+
+    return response;
+  }
+
   // Only rate limit AI endpoints
-  const shouldRateLimit = rateLimitedPaths.some(path => 
+  const shouldRateLimit = rateLimitedPaths.some(path =>
     pathname.startsWith(path)
   );
-  
+
   if (!shouldRateLimit) {
     console.log(`[PROXY] Request to ${pathname} - not rate limited`);
     return NextResponse.next();
@@ -78,5 +104,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/api/ingest', '/api/enhance'],
+  matcher: ['/', '/api/ingest', '/api/enhance'],
 };
