@@ -19,6 +19,7 @@
     "@upstash/redis": "^1.34.0",
     "@vercel/analytics": "^1.6.1",
     "@vercel/speed-insights": "^1.3.1",
+    "@vercel/toolbar": "^0.2.2",
     "@xyflow/react": "^12.10.0",
     "ai": "^6.0.62",
     "class-variance-authority": "^0.7.1",

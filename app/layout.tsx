@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { VercelToolbar } from "@vercel/toolbar/next";
 import { Nav } from "@/components/nav";
 import "./globals.css";
 
@@ -25,6 +26,8 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const shouldInjectToolbar = process.env.NODE_ENV === 'development';
+  
   return (
     <html lang="en">
       <body
@@ -36,6 +39,7 @@ export default function RootLayout({
         </main>
         <Analytics />
         <SpeedInsights />
+        {shouldInjectToolbar && <VercelToolbar />}
       </body>
     </html>
   );
