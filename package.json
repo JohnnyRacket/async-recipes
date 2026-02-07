@@ -13,6 +13,7 @@
   "dependencies": {
     "@ai-sdk/gateway": "^3.0.29",
     "@ai-sdk/react": "^3.0.64",
+    "@flags-sdk/edge-config": "^0.1.2",
     "@radix-ui/react-separator": "^1.1.8",
     "@radix-ui/react-slot": "^1.2.4",
     "@types/dagre": "^0.7.53",

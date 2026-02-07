@@ -16,13 +16,18 @@ import { saveRecipeAction } from '@/lib/actions';
 import { getIngredientColors } from '@/lib/utils';
 import type { IngredientCategory } from '@/lib/types';
 
+type InputMode = 'url' | 'text';
+
 interface AddRecipeFormProps {
   onReset?: () => void;
+  textInputEnabled?: boolean;
 }
 
-function AddRecipeForm({ onReset }: AddRecipeFormProps) {
+function AddRecipeForm({ onReset, textInputEnabled = false }: AddRecipeFormProps) {
   const router = useRouter();
+  const [inputMode, setInputMode] = useState<InputMode>('url');
   const [url, setUrl] = useState('');
+  const [recipeText, setRecipeText] = useState('');
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [isEnhanced, setIsEnhanced] = useState(false);
@@ -173,6 +178,8 @@ function AddRecipeForm({ onReset }: AddRecipeFormProps) {
   // Also track if we had complete data before enhancement (for fallback purposes)
   const extractedIsComplete = extractedObject?.title && extractedObject?.ingredients?.length && extractedObject?.steps?.length;
 
+  const hasInput = inputMode === 'url' ? url.trim() : recipeText.trim();
+
   // Detect extraction failure (completed but no useful data)
   useEffect(() => {
     // Derive extractedObject inside effect to avoid dependency issues
@@ -182,16 +189,16 @@ function AddRecipeForm({ onReset }: AddRecipeFormProps) {
       // Check if extraction completed but returned nothing useful
       // Case 1: ingestResult is undefined (empty response)
       // Case 2: extractedObject exists but has no useful data
-      if (ingestResult === undefined && url.trim()) {
+      if (ingestResult === undefined && hasInput) {
         setExtractionFailed(true);
       } else if (extractedObjectFromResult !== undefined) {
         const hasUsefulData = extractedObjectFromResult?.title || extractedObjectFromResult?.steps?.length;
-        if (!hasUsefulData && url.trim()) {
+        if (!hasUsefulData && hasInput) {
           setExtractionFailed(true);
         } else {
           setExtractionFailed(false);
         }
-      } else if (ingestResult?.isValidRecipe === true && !extractedObjectFromResult && url.trim()) {
+      } else if (ingestResult?.isValidRecipe === true && !extractedObjectFromResult && hasInput) {
         // Valid recipe flag but no recipe data
         setExtractionFailed(true);
       } else {
@@ -200,7 +207,7 @@ function AddRecipeForm({ onReset }: AddRecipeFormProps) {
     } else if (extractError) {
       setExtractionFailed(false);
     }
-  }, [isExtracting, extractError, url, ingestResult, hasAttemptedExtraction]);
+  }, [isExtracting, extractError, hasInput, ingestResult, hasAttemptedExtraction]);
 
   const handleReset = useCallback(() => {
     // Reset extraction attempt tracking
@@ -213,26 +220,35 @@ function AddRecipeForm({ onReset }: AddRecipeFormProps) {
   }, [onReset]);
 
   const handleExtract = useCallback(() => {
-    if (!url.trim()) return;
+    if (!hasInput) return;
     setSaveError(null);
     setIsEnhanced(false);
     setExtractionFailed(false);
     setHasAttemptedExtraction(true);
-    submitExtract({ url: url.trim() });
-  }, [url, submitExtract]);
+    if (inputMode === 'text') {
+      submitExtract({ text: recipeText.trim() });
+    } else {
+      submitExtract({ url: url.trim() });
+    }
+  }, [hasInput, inputMode, url, recipeText, submitExtract]);
 
   const handleRetry = useCallback(() => {
-    if (!url.trim()) return;
+    if (!hasInput) return;
     setRetryCount(prev => prev + 1);
     setExtractionFailed(false);
     setSaveError(null);
     setIsEnhanced(false);
     setHasAttemptedExtraction(true);
-    submitExtract({ url: url.trim() });
-  }, [url, submitExtract]);
+    if (inputMode === 'text') {
+      submitExtract({ text: recipeText.trim() });
+    } else {
+      submitExtract({ url: url.trim() });
+    }
+  }, [hasInput, inputMode, url, recipeText, submitExtract]);
 
   const handleEnhance = () => {
-    if (!url.trim() || !extractedObject) return;
+    // Enhancement requires re-fetching the URL, so only available in URL mode
+    if (inputMode === 'text' || !url.trim() || !extractedObject) return;
     setSaveError(null);
     setIsEnhanced(true);
     submitEnhance({ url: url.trim(), existingRecipe: extractedObject });
@@ -318,7 +334,7 @@ function AddRecipeForm({ onReset }: AddRecipeFormProps) {
           ingredientCategories,
           steps,
           calories: typeof object.calories === 'number' ? object.calories : undefined,
-          sourceUrl: url,
+          sourceUrl: inputMode === 'url' ? url : undefined,
         });
 
         if (result.success && result.id) {
@@ -337,31 +353,77 @@ function AddRecipeForm({ onReset }: AddRecipeFormProps) {
 
   return (
     <div className="space-y-8">
-      {/* URL Input Section */}
+      {/* Input Section */}
       <Card>
         <CardHeader>
-          <CardTitle>Extract Recipe from URL</CardTitle>
+          <CardTitle>
+            {inputMode === 'text' ? 'Paste Recipe Text' : 'Extract Recipe from URL'}
+          </CardTitle>
+          {textInputEnabled && (
+            <div className="flex gap-1 mt-2">
+              <Button
+                variant={inputMode === 'url' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setInputMode('url')}
+                disabled={isLoading}
+              >
+                From URL
+              </Button>
+              <Button
+                variant={inputMode === 'text' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setInputMode('text')}
+                disabled={isLoading}
+              >
+                From Text
+              </Button>
+            </div>
+          )}
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex gap-4">
-            <Input
-              type="url"
-              placeholder="Paste a recipe URL (e.g., https://example.com/recipe)"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              disabled={isLoading}
-              className="flex-1"
-            />
-            {isLoading ? (
-              <Button variant="outline" onClick={handleStop}>
-                Stop
-              </Button>
-            ) : (
-              <Button onClick={handleExtract} disabled={!url.trim()}>
-                Extract Recipe
-              </Button>
-            )}
-          </div>
+          {inputMode === 'text' ? (
+            <div className="space-y-3">
+              <textarea
+                placeholder="Paste your recipe here — include ingredients, steps, and any other details..."
+                value={recipeText}
+                onChange={(e) => setRecipeText(e.target.value)}
+                disabled={isLoading}
+                rows={8}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-y"
+              />
+              <div className="flex justify-end">
+                {isLoading ? (
+                  <Button variant="outline" onClick={handleStop}>
+                    Stop
+                  </Button>
+                ) : (
+                  <Button onClick={handleExtract} disabled={!recipeText.trim()}>
+                    Extract Recipe
+                  </Button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="flex gap-4">
+              <Input
+                type="url"
+                placeholder="Paste a recipe URL (e.g., https://example.com/recipe)"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                disabled={isLoading}
+                className="flex-1"
+              />
+              {isLoading ? (
+                <Button variant="outline" onClick={handleStop}>
+                  Stop
+                </Button>
+              ) : (
+                <Button onClick={handleExtract} disabled={!url.trim()}>
+                  Extract Recipe
+                </Button>
+              )}
+            </div>
+          )}
           {error && (
             <div className="flex items-center justify-between bg-destructive/10 p-3 rounded-md">
               <p className="text-sm text-destructive">
@@ -376,14 +438,16 @@ function AddRecipeForm({ onReset }: AddRecipeFormProps) {
             <div className="flex items-center justify-between bg-amber-100 dark:bg-amber-950 p-3 rounded-md">
               <div>
                 <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
-                  {isEmptyResponse || isValidButNoRecipe 
+                  {isEmptyResponse || isValidButNoRecipe
                     ? 'Received empty response from server'
                     : 'Extraction returned no data'}
                 </p>
                 <p className="text-xs text-amber-600 dark:text-amber-400">
                   {isEmptyResponse || isValidButNoRecipe
                     ? 'The server returned a successful response but no recipe data. This may be a temporary issue.'
-                    : 'The AI couldn&apos;t extract a recipe from this page. This can happen with some websites.'}
+                    : inputMode === 'text'
+                      ? 'The AI couldn&apos;t extract a recipe from the provided text.'
+                      : 'The AI couldn&apos;t extract a recipe from this page. This can happen with some websites.'}
                   {retryCount > 0 && ` (Attempt ${retryCount + 1})`}
                 </p>
               </div>
@@ -396,7 +460,7 @@ function AddRecipeForm({ onReset }: AddRecipeFormProps) {
             <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
               <p className="text-destructive font-medium">This doesn&apos;t appear to be a recipe</p>
               <p className="text-sm text-muted-foreground mt-1">
-                {invalidReason || 'The page content could not be identified as a cooking recipe.'}
+                {invalidReason || 'The content could not be identified as a cooking recipe.'}
               </p>
               <Button variant="outline" size="sm" className="mt-3" onClick={handleRetry}>
                 Try Again
@@ -404,7 +468,9 @@ function AddRecipeForm({ onReset }: AddRecipeFormProps) {
             </div>
           )}
           <p className="text-sm text-muted-foreground">
-            Paste any recipe URL and our AI will extract the ingredients, steps, and analyze which steps can run in parallel.
+            {inputMode === 'text'
+              ? 'Paste a recipe from any source and our AI will extract the ingredients, steps, and analyze which steps can run in parallel.'
+              : 'Paste any recipe URL and our AI will extract the ingredients, steps, and analyze which steps can run in parallel.'}
           </p>
         </CardContent>
       </Card>
@@ -634,7 +700,7 @@ function AddRecipeForm({ onReset }: AddRecipeFormProps) {
                         : 'Recipe extraction incomplete. Enhance to fill in missing details.'}
                   </p>
                   <div className="flex flex-col gap-2 sm:flex-row">
-                    {!isEnhanced && (
+                    {!isEnhanced && inputMode === 'url' && (
                       <Button variant="outline" onClick={handleEnhance} disabled={isPending}>
                         Enhance Recipe
                       </Button>
@@ -665,7 +731,7 @@ function AddRecipeForm({ onReset }: AddRecipeFormProps) {
 
 // Wrapper component that forces remount when navigating to the add page
 // This ensures the form is reset when returning from other pages
-export function AddRecipeFormWrapper() {
+export function AddRecipeFormWrapper({ textInputEnabled }: { textInputEnabled?: boolean }) {
   const pathname = usePathname();
   const [mountKey, setMountKey] = useState(() => Date.now());
 
@@ -680,5 +746,5 @@ export function AddRecipeFormWrapper() {
     setMountKey(Date.now());
   }, []);
 
-  return <AddRecipeForm key={mountKey} onReset={handleReset} />;
+  return <AddRecipeForm key={mountKey} onReset={handleReset} textInputEnabled={textInputEnabled} />;
 }
