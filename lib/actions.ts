@@ -107,6 +107,7 @@ export async function loadMoreRecipes(options: {
   query?: string;
   cursor?: string;
   limit?: number;
-}): Promise<{ recipes: any[]; nextCursor: string | null; totalCount: number }> {
-  throw new Error('Internal Server Error: Failed to load recipes');
+}) {
+  const { searchRecipes } = await import('./kv');
+  return searchRecipes(options);
 }
