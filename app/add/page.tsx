@@ -3,7 +3,7 @@ import { AddRecipeFormWrapper } from '@/components/add-recipe-form';
 import { textInputEnabled } from '@/flags';
 
 export const metadata: Metadata = {
-  title: 'Fork a Recipe | Forked Recipes',
+  title: 'Fork a Recipe | Parallel Recipes',
   description: 'Extract a recipe from any URL using AI.',
 };
 

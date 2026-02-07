@@ -63,7 +63,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
           }}
         >
           <div style={{ fontSize: 24, opacity: 0.9, marginBottom: 8 }}>
-            Forked Recipes
+            Parallel Recipes
           </div>
           <div style={{ fontSize: 64, fontWeight: 'bold', lineHeight: 1.1 }}>
             {recipe.title}

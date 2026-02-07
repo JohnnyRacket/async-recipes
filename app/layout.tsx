@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Forked Recipes",
+  title: "Parallel Recipes",
   description: "Recipes for engineers: visualize cooking as a dependency graph to maximize parallelism and share your favorite dishes.",
 };
 
