@@ -1,6 +1,7 @@
 import { streamText, Output, tool, stepCountIs } from 'ai';
 import { z } from 'zod';
 import { gateway } from '@ai-sdk/gateway';
+import { checkBotId } from 'botid/server';
 import { IngestResultSchema } from '@/lib/schemas';
 import { ValidationError, isAppError, errorResponse, toAppError } from '@/lib/errors';
 import { sanitizeUrl, fetchRecipePage, extractImageUrls, stripHtml, validateImageUrl } from '@/lib/utils';
@@ -10,6 +11,11 @@ import { sanitizeUrl, fetchRecipePage, extractImageUrls, stripHtml, validateImag
 
 export async function POST(req: Request) {
   try {
+    const verification = await checkBotId();
+    if (verification.isBot) {
+      return new Response(JSON.stringify({ error: 'Access denied' }), { status: 403 });
+    }
+
     const { url: rawUrl, text: rawText } = await req.json();
 
     if (!rawUrl && !rawText) {
