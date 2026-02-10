@@ -24,6 +24,7 @@
     "@vercel/toolbar": "^0.2.2",
     "@xyflow/react": "^12.10.0",
     "ai": "^6.0.62",
+    "botid": "^1.5.10",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "dagre": "^0.8.5",

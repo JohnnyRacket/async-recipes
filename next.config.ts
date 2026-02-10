@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withBotId } from "botid/next/config";
 import createWithVercelToolbar from "@vercel/toolbar/plugins/next";
 
 const nextConfig: NextConfig = {
@@ -14,4 +15,4 @@ const nextConfig: NextConfig = {
 };
 
 const withVercelToolbar = createWithVercelToolbar();
-export default withVercelToolbar(nextConfig);
+export default withBotId(withVercelToolbar(nextConfig));
