@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import createWithVercelToolbar from "@vercel/toolbar/plugins/next";
+import { withWorkflow } from "@workflow/next";
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
@@ -14,4 +15,4 @@ const nextConfig: NextConfig = {
 };
 
 const withVercelToolbar = createWithVercelToolbar();
-export default withVercelToolbar(nextConfig);
+export default withWorkflow(withVercelToolbar(nextConfig));
