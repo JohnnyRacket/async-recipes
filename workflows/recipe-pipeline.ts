@@ -82,6 +82,7 @@ async function extractStep(prepared: PreparedContent) {
     model: gateway('deepseek/deepseek-v3.2'),
     schema: IngestResultSchema,
     prompt: buildIngestPrompt({ textContent: prepared.textContent, imageUrls: prepared.imageUrls }),
+    abortSignal: AbortSignal.timeout(60_000),
   });
 
   const chunkWriter = writable.getWriter();
@@ -92,6 +93,11 @@ async function extractStep(prepared: PreparedContent) {
     const finalObject = await stream.object;
     await chunkWriter.write({ type: 'data-recipe-partial', data: finalObject });
     return finalObject;
+  } catch (err) {
+    if (err instanceof Error && err.name === 'TimeoutError') {
+      throw new RetryableError('Extract step timed out after 60s', { retryAfter: '5s' });
+    }
+    throw err;
   } finally {
     chunkWriter.releaseLock();
   }
@@ -124,6 +130,7 @@ async function enhanceStep({
       textContent: prepared.textContent,
       imageUrls: prepared.imageUrls,
     }),
+    abortSignal: AbortSignal.timeout(60_000),
   });
 
   const chunkWriter = writable.getWriter();
@@ -134,6 +141,11 @@ async function enhanceStep({
     const finalObject = await stream.object;
     await chunkWriter.write({ type: 'data-recipe-enhanced', data: finalObject });
     return finalObject;
+  } catch (err) {
+    if (err instanceof Error && err.name === 'TimeoutError') {
+      throw new RetryableError('Enhance step timed out after 60s', { retryAfter: '5s' });
+    }
+    throw err;
   } finally {
     chunkWriter.releaseLock();
   }
