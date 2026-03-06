@@ -94,11 +94,13 @@ function AddRecipeForm({ onReset, textInputEnabled = false }: AddRecipeFormProps
     () => ([...parts].reverse().find(p => p.type === 'data-enhance-decision') as { type: string; data: { token: string } } | undefined)?.data?.token ?? null,
     [parts]
   );
-  const isAwaitingDecision = status === 'streaming' && !!decisionToken && !enhancedRecipe;
+  const [decisionMade, setDecisionMade] = useState(false);
+  const isAwaitingDecision = status === 'streaming' && !!decisionToken && !enhancedRecipe && !decisionMade;
 
   const handleDecision = useCallback(async (decision: 'enhance' | 'skip') => {
     const runId = localStorage.getItem(STORAGE_KEY);
     if (!runId || !decisionToken) return;
+    setDecisionMade(true);
     await fetch(`/api/ingest/${runId}/decide`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -204,6 +206,7 @@ function AddRecipeForm({ onReset, textInputEnabled = false }: AddRecipeFormProps
     if (!hasInput) return;
     setSaveError(null);
     setHasAttemptedExtraction(true);
+    setDecisionMade(false);
     setMessages([]);
     pendingBodyRef.current = {
       url: inputMode === 'url' ? url.trim() : undefined,
