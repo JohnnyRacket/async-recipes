@@ -99,10 +99,7 @@ async function extractStep(prepared: PreparedContent) {
     await chunkWriter.write({ type: 'data-recipe-partial', data: finalObject });
     return finalObject;
   } catch (err) {
-    if (err instanceof Error && err.name === 'TimeoutError') {
-      throw new RetryableError('Extract step timed out after 100s', { retryAfter: '5s' });
-    }
-    throw err;
+    throw new RetryableError(`Extract step failed: ${String(err)}`, { retryAfter: '5s' });
   } finally {
     chunkWriter.releaseLock();
   }
@@ -159,10 +156,7 @@ async function enhanceStep({
     await chunkWriter.write({ type: 'data-recipe-enhanced', data: finalObject });
     return finalObject;
   } catch (err) {
-    if (err instanceof Error && err.name === 'TimeoutError') {
-      throw new RetryableError('Enhance step timed out after 100s', { retryAfter: '5s' });
-    }
-    throw err;
+    throw new RetryableError(`Enhance step failed: ${String(err)}`, { retryAfter: '5s' });
   } finally {
     chunkWriter.releaseLock();
   }
