@@ -111,6 +111,7 @@ function AddRecipeForm({ onReset, textInputEnabled = false }: AddRecipeFormProps
   const extractedObject = ingestResult?.recipe ?? null;
   const isInvalidRecipe = !isLoading && ingestResult?.isValidRecipe === false;
   const invalidReason = ingestResult?.invalidReason;
+  const streamFailed = status === 'ready' && !extractedObject && !isInvalidRecipe && messages.length > 0;
 
   // Merge enhanced data with extracted data (same logic as before)
   const mergedObject = useMemo(() => {
@@ -381,10 +382,10 @@ function AddRecipeForm({ onReset, textInputEnabled = false }: AddRecipeFormProps
               )}
             </div>
           )}
-          {hasError && (
+          {(hasError || streamFailed) && (
             <div className="flex items-center justify-between bg-destructive/10 p-3 rounded-md">
               <p className="text-sm text-destructive">
-                Failed to extract recipe. Please try again.
+                {statusMessage ?? 'Failed to extract recipe. Please try again.'}
               </p>
               <Button variant="outline" size="sm" onClick={handleRetry}>
                 Retry

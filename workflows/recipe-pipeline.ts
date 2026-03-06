@@ -6,6 +6,12 @@ import { IngestResultSchema, RecipeSchema } from '@/lib/schemas';
 import { buildIngestPrompt, buildEnhancePrompt } from '@/lib/prompts';
 import { sanitizeUrl, fetchRecipePage, extractImageUrls, stripHtml } from '@/lib/utils';
 
+const USER_FACING_PREFIX = '__UF__:';
+
+function userFatalError(message: string): FatalError {
+  return new FatalError(`${USER_FACING_PREFIX}${message}`);
+}
+
 export type WorkflowInput = {
   url?: string;
   text?: string;
@@ -20,19 +26,27 @@ type PreparedContent = {
 export async function recipeWorkflow(input: WorkflowInput): Promise<void> {
   'use workflow';
 
-  const prepared = await fetchStep(input);
-  const extracted = await extractStep(prepared);
+  try {
+    const prepared = await fetchStep(input);
+    const extracted = await extractStep(prepared);
 
-  if (input.url && extracted?.isValidRecipe && extracted?.recipe) {
-    const hook = createHook<{ decision: 'enhance' | 'skip' }>();
-    await writeDecisionChunk(hook.token);
-    const { decision } = await hook;
-    if (decision === 'enhance') {
-      await enhanceStep({ url: input.url, existingRecipe: extracted.recipe, prepared });
+    if (input.url && extracted?.isValidRecipe && extracted?.recipe) {
+      const hook = createHook<{ decision: 'enhance' | 'skip' }>();
+      await writeDecisionChunk(hook.token);
+      const { decision } = await hook;
+      if (decision === 'enhance') {
+        await enhanceStep({ url: input.url, existingRecipe: extracted.recipe, prepared });
+      }
     }
-  }
 
-  await finishStep();
+    await finishStep();
+  } catch (err) {
+    const rawMessage = (err as any)?.message ?? '';
+    const message = rawMessage.startsWith(USER_FACING_PREFIX)
+      ? rawMessage.slice(USER_FACING_PREFIX.length)
+      : 'Something went wrong. Please try again.';
+    await writeErrorAndFinishStep(message);
+  }
 }
 
 // ─── Step 1: Fetch & Prepare ──────────────────────────────────────────────────
@@ -63,6 +77,13 @@ async function fetchStep(input: WorkflowInput): Promise<PreparedContent> {
   try {
     html = await fetchRecipePage(safeUrl);
   } catch (err) {
+    const httpStatus = (err as any)?.httpStatus;
+    if (httpStatus === 403) {
+      throw userFatalError("This page may be protected by bot detection. Try pasting the recipe text instead.");
+    }
+    if (httpStatus === 401) {
+      throw userFatalError("This page requires authentication and can't be fetched automatically. Try pasting the recipe text instead.");
+    }
     throw new RetryableError(`Failed to fetch page: ${String(err)}`, { retryAfter: '5s' });
   }
 
@@ -160,6 +181,19 @@ async function enhanceStep({
   }
 }
 enhanceStep.maxRetries = 3;
+
+// ─── Error Finish ─────────────────────────────────────────────────────────────
+
+async function writeErrorAndFinishStep(message: string): Promise<void> {
+  'use step';
+
+  const writable = getWritable<UIMessageChunk>();
+  const writer = writable.getWriter();
+  await writer.write({ type: 'data-status', data: { message } });
+  await writer.write({ type: 'finish', finishReason: 'stop' });
+  await writer.close();
+}
+writeErrorAndFinishStep.maxRetries = 3;
 
 // ─── Finish ───────────────────────────────────────────────────────────────────
 

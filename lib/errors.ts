@@ -60,7 +60,7 @@ export class NotFoundError extends AppError {
  * HTTP 502 Bad Gateway
  */
 export class ExternalFetchError extends AppError {
-  constructor(message: string, code: string = 'EXTERNAL_FETCH_ERROR') {
+  constructor(message: string, code: string = 'EXTERNAL_FETCH_ERROR', public httpStatus?: number) {
     super(message, code, 502);
     this.name = 'ExternalFetchError';
   }

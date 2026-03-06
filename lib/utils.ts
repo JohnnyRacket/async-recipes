@@ -274,7 +274,8 @@ export async function fetchRecipePage(url: URL): Promise<string> {
   if (!pageResponse.ok) {
     throw new ExternalFetchError(
       `Failed to fetch the recipe page (status: ${pageResponse.status})`,
-      'FETCH_FAILED'
+      'FETCH_FAILED',
+      pageResponse.status
     );
   }
 
