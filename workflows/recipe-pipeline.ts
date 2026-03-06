@@ -1,4 +1,4 @@
-import { getWritable, FatalError, RetryableError } from 'workflow';
+import { getWritable, FatalError, RetryableError, createHook } from 'workflow';
 import { streamObject } from 'ai';
 import { gateway } from '@ai-sdk/gateway';
 import type { UIMessageChunk } from 'ai';
@@ -24,7 +24,12 @@ export async function recipeWorkflow(input: WorkflowInput): Promise<void> {
   const extracted = await extractStep(prepared);
 
   if (input.url && extracted?.isValidRecipe && extracted?.recipe) {
-    await enhanceStep({ url: input.url, existingRecipe: extracted.recipe, prepared });
+    const hook = createHook<{ decision: 'enhance' | 'skip' }>();
+    await writeDecisionChunk(hook.token);
+    const { decision } = await hook;
+    if (decision === 'enhance') {
+      await enhanceStep({ url: input.url, existingRecipe: extracted.recipe, prepared });
+    }
   }
 
   await finishStep();
@@ -82,7 +87,7 @@ async function extractStep(prepared: PreparedContent) {
     model: gateway('deepseek/deepseek-v3.2'),
     schema: IngestResultSchema,
     prompt: buildIngestPrompt({ textContent: prepared.textContent, imageUrls: prepared.imageUrls }),
-    abortSignal: AbortSignal.timeout(60_000),
+    abortSignal: AbortSignal.timeout(100_000),
   });
 
   const chunkWriter = writable.getWriter();
@@ -95,7 +100,7 @@ async function extractStep(prepared: PreparedContent) {
     return finalObject;
   } catch (err) {
     if (err instanceof Error && err.name === 'TimeoutError') {
-      throw new RetryableError('Extract step timed out after 60s', { retryAfter: '5s' });
+      throw new RetryableError('Extract step timed out after 100s', { retryAfter: '5s' });
     }
     throw err;
   } finally {
@@ -103,7 +108,19 @@ async function extractStep(prepared: PreparedContent) {
   }
 }
 
-// ─── Step 3: Enhance Recipe ───────────────────────────────────────────────────
+// ─── Step 3: Write Decision Chunk ─────────────────────────────────────────────
+
+async function writeDecisionChunk(token: string): Promise<void> {
+  'use step';
+
+  const writable = getWritable<UIMessageChunk>();
+  const writer = writable.getWriter();
+  await writer.write({ type: 'data-status', data: { message: 'Recipe extracted! Enhance or save as-is?' } });
+  await writer.write({ type: 'data-enhance-decision', data: { token } });
+  writer.releaseLock();
+}
+
+// ─── Step 4: Enhance Recipe ───────────────────────────────────────────────────
 
 async function enhanceStep({
   url,
@@ -130,7 +147,7 @@ async function enhanceStep({
       textContent: prepared.textContent,
       imageUrls: prepared.imageUrls,
     }),
-    abortSignal: AbortSignal.timeout(60_000),
+    abortSignal: AbortSignal.timeout(100_000),
   });
 
   const chunkWriter = writable.getWriter();
@@ -143,7 +160,7 @@ async function enhanceStep({
     return finalObject;
   } catch (err) {
     if (err instanceof Error && err.name === 'TimeoutError') {
-      throw new RetryableError('Enhance step timed out after 60s', { retryAfter: '5s' });
+      throw new RetryableError('Enhance step timed out after 100s', { retryAfter: '5s' });
     }
     throw err;
   } finally {

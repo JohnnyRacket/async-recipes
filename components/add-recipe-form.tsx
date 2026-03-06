@@ -89,6 +89,23 @@ function AddRecipeForm({ onReset, textInputEnabled = false }: AddRecipeFormProps
     return (latest as { type: string; data: { message: string } } | undefined)?.data?.message ?? null;
   }, [parts]);
 
+  // Detect enhance decision hook (workflow paused, awaiting user choice)
+  const decisionToken = useMemo(
+    () => ([...parts].reverse().find(p => p.type === 'data-enhance-decision') as { type: string; data: { token: string } } | undefined)?.data?.token ?? null,
+    [parts]
+  );
+  const isAwaitingDecision = status === 'streaming' && !!decisionToken && !enhancedRecipe;
+
+  const handleDecision = useCallback(async (decision: 'enhance' | 'skip') => {
+    const runId = localStorage.getItem(STORAGE_KEY);
+    if (!runId || !decisionToken) return;
+    await fetch(`/api/ingest/${runId}/decide`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: decisionToken, decision }),
+    });
+  }, [decisionToken]);
+
   const extractedObject = ingestResult?.recipe ?? null;
   const isInvalidRecipe = !isLoading && ingestResult?.isValidRecipe === false;
   const invalidReason = ingestResult?.invalidReason;
@@ -440,7 +457,9 @@ function AddRecipeForm({ onReset, textInputEnabled = false }: AddRecipeFormProps
                   Start Over
                 </Button>
               )}
-              {isLoading ? (
+              {isAwaitingDecision ? (
+                <Badge className="bg-amber-500">Your choice</Badge>
+              ) : isLoading ? (
                 <Badge variant="secondary" className="animate-pulse bg-white/90 dark:bg-black/70">
                   {statusBadgeLabel}
                 </Badge>
@@ -598,6 +617,23 @@ function AddRecipeForm({ onReset, textInputEnabled = false }: AddRecipeFormProps
                 </div>
               )}
             </div>
+
+            {/* Decision UI */}
+            {isAwaitingDecision && (
+              <>
+                <Separator />
+                <div className="rounded-lg border p-4 space-y-3">
+                  <p className="text-sm font-medium">Recipe extracted. Would you like to enhance it?</p>
+                  <p className="text-xs text-muted-foreground">
+                    Enhancement adds step timing, parallel cooking analysis, and ingredient metadata.
+                  </p>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={() => handleDecision('enhance')}>Enhance Recipe</Button>
+                    <Button size="sm" variant="outline" onClick={() => handleDecision('skip')}>Keep it</Button>
+                  </div>
+                </div>
+              </>
+            )}
 
             {/* Action Buttons */}
             {!isLoading && extractedObject && (
