@@ -72,6 +72,7 @@ async function fetchStep(input: WorkflowInput): Promise<PreparedContent> {
     sourceUrl: safeUrl.toString(),
   };
 }
+fetchStep.maxRetries = 3;
 
 // ─── Step 2: Extract Recipe ───────────────────────────────────────────────────
 
@@ -98,12 +99,11 @@ async function extractStep(prepared: PreparedContent) {
     const finalObject = await stream.object;
     await chunkWriter.write({ type: 'data-recipe-partial', data: finalObject });
     return finalObject;
-  } catch (err) {
-    throw new RetryableError(`Extract step failed: ${String(err)}`, { retryAfter: '5s' });
   } finally {
     chunkWriter.releaseLock();
   }
 }
+extractStep.maxRetries = 3;
 
 // ─── Step 3: Write Decision Chunk ─────────────────────────────────────────────
 
@@ -155,12 +155,11 @@ async function enhanceStep({
     const finalObject = await stream.object;
     await chunkWriter.write({ type: 'data-recipe-enhanced', data: finalObject });
     return finalObject;
-  } catch (err) {
-    throw new RetryableError(`Enhance step failed: ${String(err)}`, { retryAfter: '5s' });
   } finally {
     chunkWriter.releaseLock();
   }
 }
+enhanceStep.maxRetries = 3;
 
 // ─── Finish ───────────────────────────────────────────────────────────────────
 
