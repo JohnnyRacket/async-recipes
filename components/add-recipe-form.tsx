@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useTransition, useEffect, useCallback, useMemo } from 'react';
+import { useState, useTransition, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Image from 'next/image';
-import { experimental_useObject as useObject } from '@ai-sdk/react';
+import { useChat } from '@ai-sdk/react';
+import { WorkflowChatTransport } from '@workflow/ai';
 import { Clock, Thermometer, Timer } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -11,10 +12,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
-import { RecipeSchema, IngestResultSchema } from '@/lib/schemas';
 import { saveRecipeAction } from '@/lib/actions';
 import { getIngredientColors } from '@/lib/utils';
 import type { IngredientCategory } from '@/lib/types';
+import type { DeepPartial } from 'ai';
+import type { IngestResult, RecipeInput } from '@/lib/schemas';
+
+const STORAGE_KEY = 'recipe-workflow-run-id';
 
 type InputMode = 'url' | 'text';
 
@@ -30,73 +34,81 @@ function AddRecipeForm({ onReset, textInputEnabled = false }: AddRecipeFormProps
   const [recipeText, setRecipeText] = useState('');
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [isEnhanced, setIsEnhanced] = useState(false);
-  const [extractionFailed, setExtractionFailed] = useState(false);
-  const [retryCount, setRetryCount] = useState(0);
-  const [hasAttemptedExtraction, setHasAttemptedExtraction] = useState(false);
+  const [storedRunId] = useState(() => localStorage.getItem(STORAGE_KEY));
 
-  // Initial extraction with validation
-  const { 
-    object: ingestResult, 
-    submit: submitExtract, 
-    isLoading: isExtracting, 
-    error: extractError, 
-    stop: stopExtract 
-  } = useObject({
-    api: '/api/ingest',
-    schema: IngestResultSchema,
+  // Mark extraction as attempted when resuming a prior run
+  const [hasAttemptedExtraction, setHasAttemptedExtraction] = useState(() =>
+    !!localStorage.getItem(STORAGE_KEY)
+  );
+
+  // WorkflowChatTransport only sends { messages } by default — use a ref to
+  // inject url/text into the body via prepareSendMessagesRequest
+  const pendingBodyRef = useRef<{ url?: string; text?: string }>({});
+
+  const { messages, sendMessage, status, stop, setMessages, error } = useChat({
+    transport: new WorkflowChatTransport({
+      api: '/api/ingest',
+      prepareSendMessagesRequest: ({ messages: msgs }) => ({
+        body: { messages: msgs, ...pendingBodyRef.current },
+      }),
+      onChatSendMessage: (response) => {
+        const runId = response.headers.get('x-workflow-run-id');
+        if (runId) localStorage.setItem(STORAGE_KEY, runId);
+      },
+    }),
+    ...(storedRunId ? { id: storedRunId, resume: true } : {}),
   });
 
-  // Derive extracted recipe from ingest result
-  const extractedObject = ingestResult?.recipe;
-  
-  // Check for validation failure (AI determined content is not a valid recipe)
-  const isInvalidRecipe = !isExtracting && ingestResult?.isValidRecipe === false;
+
+  const isLoading = status === 'submitted' || status === 'streaming';
+  const hasError = status === 'error' || !!error;
+
+  // Extract data parts from the latest assistant message
+  const lastAssistantMessage = useMemo(
+    () => messages.findLast(m => m.role === 'assistant'),
+    [messages]
+  );
+
+  const parts = useMemo(() => lastAssistantMessage?.parts ?? [], [lastAssistantMessage]);
+
+  // Get latest ingest result partial (streaming extract data)
+  const ingestResult = useMemo(() => {
+    const latest = [...parts].reverse().find(p => p.type === 'data-recipe-partial');
+    return (latest as { type: string; data: DeepPartial<IngestResult> } | undefined)?.data ?? null;
+  }, [parts]);
+
+  // Get latest enhanced recipe partial
+  const enhancedRecipe = useMemo(() => {
+    const latest = [...parts].reverse().find(p => p.type === 'data-recipe-enhanced');
+    return (latest as { type: string; data: DeepPartial<RecipeInput> } | undefined)?.data ?? null;
+  }, [parts]);
+
+  // Get current status message
+  const statusMessage = useMemo(() => {
+    const latest = [...parts].reverse().find(p => p.type === 'data-status');
+    return (latest as { type: string; data: { message: string } } | undefined)?.data?.message ?? null;
+  }, [parts]);
+
+  const extractedObject = ingestResult?.recipe ?? null;
+  const isInvalidRecipe = !isLoading && ingestResult?.isValidRecipe === false;
   const invalidReason = ingestResult?.invalidReason;
-  
-  // Check for empty response (200 but no data)
-  // Only show this error if we've actually attempted an extraction
-  const isEmptyResponse = hasAttemptedExtraction && !isExtracting && !extractError && ingestResult === undefined;
-  // Also check if isValidRecipe is true but recipe is missing/empty
-  const isValidButNoRecipe = hasAttemptedExtraction && !isExtracting && !extractError && ingestResult?.isValidRecipe === true && !extractedObject;
 
-  // Enhancement pass
-  const { 
-    object: enhancedObject, 
-    submit: submitEnhance, 
-    isLoading: isEnhancing, 
-    error: enhanceError, 
-    stop: stopEnhance 
-  } = useObject({
-    api: '/api/enhance',
-    schema: RecipeSchema,
-  });
-
-  // Merge enhanced data with extracted data to prevent field loss during streaming
-  // This ensures we never lose imageUrl or other fields when enhancing
-  // BUT: Enhancement can ADD steps that were missing, so we prefer enhanced steps when available
+  // Merge enhanced data with extracted data (same logic as before)
   const mergedObject = useMemo(() => {
-    if (!isEnhanced || !extractedObject) return extractedObject;
-    if (!enhancedObject) return extractedObject;
-    
-    // For steps: Enhancement may find MISSING steps, so prefer enhanced if it has more complete data
-    // During streaming, enhanced might be incomplete, so we need smart fallback
-    const enhancedStepsCount = enhancedObject.steps?.filter(s => s?.id && s?.text).length ?? 0;
+    if (!extractedObject) return extractedObject;
+    if (!enhancedRecipe) return extractedObject;
+
+    const enhancedStepsCount = enhancedRecipe.steps?.filter(s => s?.id && s?.text).length ?? 0;
     const extractedStepsCount = extractedObject.steps?.filter(s => s?.id && s?.text).length ?? 0;
-    
+
     let mergedSteps;
     if (enhancedStepsCount >= extractedStepsCount) {
-      // Enhanced has same or more steps - use enhanced steps (may have found missing ones)
-      // But fill in any missing metadata from extracted during streaming
-      mergedSteps = enhancedObject.steps?.map((enhancedStep) => {
+      mergedSteps = enhancedRecipe.steps?.map((enhancedStep) => {
         if (!enhancedStep?.id) return enhancedStep;
-        // Try to find matching step in extracted by ID
         const extractedStep = extractedObject.steps?.find(s => s?.id === enhancedStep.id);
-        
         return {
           id: enhancedStep.id,
           text: enhancedStep.text ?? extractedStep?.text,
-          // For dependencies: prefer enhanced (may have re-analyzed them)
           dependsOn: enhancedStep.dependsOn ?? extractedStep?.dependsOn ?? [],
           duration: enhancedStep.duration ?? extractedStep?.duration,
           isPassive: enhancedStep.isPassive ?? extractedStep?.isPassive,
@@ -106,13 +118,10 @@ function AddRecipeForm({ onReset, textInputEnabled = false }: AddRecipeFormProps
         };
       });
     } else {
-      // Enhanced is still streaming and has fewer steps - show extracted while streaming continues
-      // But merge in any enhanced metadata for steps that are present
       mergedSteps = extractedObject.steps?.map((extractedStep) => {
         if (!extractedStep?.id) return extractedStep;
-        const enhancedStep = enhancedObject.steps?.find(s => s?.id === extractedStep.id);
+        const enhancedStep = enhancedRecipe.steps?.find(s => s?.id === extractedStep.id);
         if (!enhancedStep) return extractedStep;
-        
         return {
           id: extractedStep.id,
           text: extractedStep.text,
@@ -126,41 +135,32 @@ function AddRecipeForm({ onReset, textInputEnabled = false }: AddRecipeFormProps
       });
     }
 
-    // Merge ingredient categories
     const mergedIngredientCategories = {
       ...(extractedObject.ingredientCategories || {}),
-      ...(enhancedObject.ingredientCategories || {}),
+      ...(enhancedRecipe.ingredientCategories || {}),
     };
 
-    // For ingredients: prefer enhanced if it has more (may have found missing ones)
-    const enhancedIngredientsCount = enhancedObject.ingredients?.filter(i => i).length ?? 0;
+    const enhancedIngredientsCount = enhancedRecipe.ingredients?.filter(i => i).length ?? 0;
     const extractedIngredientsCount = extractedObject.ingredients?.filter(i => i).length ?? 0;
 
     return {
-      // For each field: prefer enhanced if it has a meaningful value, otherwise keep extracted
-      title: enhancedObject.title || extractedObject.title,
-      description: enhancedObject.description || extractedObject.description,
-      // CRITICAL: Preserve imageUrl - only replace if enhanced has a non-empty value
-      imageUrl: enhancedObject.imageUrl || extractedObject.imageUrl,
-      // Prefer enhanced ingredients if they have more items (may have found missing ones)
-      ingredients: enhancedIngredientsCount >= extractedIngredientsCount 
-        ? enhancedObject.ingredients 
+      title: enhancedRecipe.title || extractedObject.title,
+      description: enhancedRecipe.description || extractedObject.description,
+      imageUrl: enhancedRecipe.imageUrl || extractedObject.imageUrl,
+      ingredients: enhancedIngredientsCount >= extractedIngredientsCount
+        ? enhancedRecipe.ingredients
         : extractedObject.ingredients,
-      ingredientCategories: Object.keys(mergedIngredientCategories).length > 0 
-        ? mergedIngredientCategories 
+      ingredientCategories: Object.keys(mergedIngredientCategories).length > 0
+        ? mergedIngredientCategories
         : undefined,
       steps: mergedSteps,
-      // Prefer enhanced calories if available, otherwise use extracted
-      calories: enhancedObject.calories ?? extractedObject.calories,
+      calories: enhancedRecipe.calories ?? extractedObject.calories,
     };
-  }, [isEnhanced, extractedObject, enhancedObject]);
+  }, [extractedObject, enhancedRecipe]);
 
-  // Use the merged object for display
   const object = mergedObject;
-  const isLoading = isExtracting || isEnhancing;
-  const error = isEnhanced ? enhanceError : extractError;
+  const isEnhanced = !!enhancedRecipe;
 
-  // Validate imageUrl is a valid URL before using it
   const isValidImageUrl = useMemo(() => {
     if (!object?.imageUrl || typeof object.imageUrl !== 'string') return false;
     const urlString = object.imageUrl.trim();
@@ -173,152 +173,82 @@ function AddRecipeForm({ onReset, textInputEnabled = false }: AddRecipeFormProps
     }
   }, [object?.imageUrl]);
 
-  // Check completeness - the merged object should have all required fields
   const objectIsComplete = object?.title && object?.ingredients?.length && object?.steps?.length;
-  // Also track if we had complete data before enhancement (for fallback purposes)
-  const extractedIsComplete = extractedObject?.title && extractedObject?.ingredients?.length && extractedObject?.steps?.length;
-
   const hasInput = inputMode === 'url' ? url.trim() : recipeText.trim();
 
-  // Detect extraction failure (completed but no useful data)
-  useEffect(() => {
-    // Derive extractedObject inside effect to avoid dependency issues
-    const extractedObjectFromResult = ingestResult?.recipe;
-    
-    if (!isExtracting && !extractError && hasAttemptedExtraction) {
-      // Check if extraction completed but returned nothing useful
-      // Case 1: ingestResult is undefined (empty response)
-      // Case 2: extractedObject exists but has no useful data
-      if (ingestResult === undefined && hasInput) {
-        setExtractionFailed(true);
-      } else if (extractedObjectFromResult !== undefined) {
-        const hasUsefulData = extractedObjectFromResult?.title || extractedObjectFromResult?.steps?.length;
-        if (!hasUsefulData && hasInput) {
-          setExtractionFailed(true);
-        } else {
-          setExtractionFailed(false);
-        }
-      } else if (ingestResult?.isValidRecipe === true && !extractedObjectFromResult && hasInput) {
-        // Valid recipe flag but no recipe data
-        setExtractionFailed(true);
-      } else {
-        setExtractionFailed(false);
-      }
-    } else if (extractError) {
-      setExtractionFailed(false);
-    }
-  }, [isExtracting, extractError, hasInput, ingestResult, hasAttemptedExtraction]);
-
   const handleReset = useCallback(() => {
-    // Reset extraction attempt tracking
+    localStorage.removeItem(STORAGE_KEY);
     setHasAttemptedExtraction(false);
-    // Call the onReset callback to regenerate the wrapper's key
-    // This will remount the form with fresh state
-    if (onReset) {
-      onReset();
-    }
-  }, [onReset]);
+    setMessages([]);
+    if (onReset) onReset();
+  }, [onReset, setMessages]);
 
-  const handleExtract = useCallback(() => {
+  const submitExtraction = useCallback((isRetry = false) => {
     if (!hasInput) return;
     setSaveError(null);
-    setIsEnhanced(false);
-    setExtractionFailed(false);
     setHasAttemptedExtraction(true);
-    if (inputMode === 'text') {
-      submitExtract({ text: recipeText.trim() });
-    } else {
-      submitExtract({ url: url.trim() });
-    }
-  }, [hasInput, inputMode, url, recipeText, submitExtract]);
+    setMessages([]);
+    pendingBodyRef.current = {
+      url: inputMode === 'url' ? url.trim() : undefined,
+      text: inputMode === 'text' ? recipeText.trim() : undefined,
+    };
+    sendMessage({ text: inputMode === 'url' ? url : recipeText });
+  }, [hasInput, inputMode, url, recipeText, sendMessage, setMessages]);
 
-  const handleRetry = useCallback(() => {
-    if (!hasInput) return;
-    setRetryCount(prev => prev + 1);
-    setExtractionFailed(false);
-    setSaveError(null);
-    setIsEnhanced(false);
-    setHasAttemptedExtraction(true);
-    if (inputMode === 'text') {
-      submitExtract({ text: recipeText.trim() });
-    } else {
-      submitExtract({ url: url.trim() });
+  const handleExtract = useCallback(() => submitExtraction(false), [submitExtraction]);
+  const handleRetry = useCallback(() => submitExtraction(true), [submitExtraction]);
+  const handleStop = useCallback(() => {
+    const runId = localStorage.getItem(STORAGE_KEY);
+    if (runId) {
+      fetch(`/api/ingest/${runId}/stream`, { method: 'DELETE' });
     }
-  }, [hasInput, inputMode, url, recipeText, submitExtract]);
-
-  const handleEnhance = () => {
-    // Enhancement requires re-fetching the URL, so only available in URL mode
-    if (inputMode === 'text' || !url.trim() || !extractedObject) return;
-    setSaveError(null);
-    setIsEnhanced(true);
-    submitEnhance({ url: url.trim(), existingRecipe: extractedObject });
-  };
-
-  const handleStop = () => {
-    if (isEnhancing) {
-      stopEnhance();
-    } else {
-      stopExtract();
-    }
-  };
+    stop();
+    handleReset();
+  }, [stop, handleReset]);
 
   const handleSave = () => {
     if (!object?.title || !object?.steps?.length) return;
 
     startTransition(async () => {
       try {
-        // Filter out any undefined values from streaming partial objects
-        const ingredients = (object.ingredients || []).filter((i): i is string => 
+        const ingredients = (object.ingredients || []).filter((i): i is string =>
           i !== undefined && i !== null && typeof i === 'string' && i.trim().length > 0
         );
-        
-        // Validate we have at least one ingredient
+
         if (ingredients.length === 0) {
           setSaveError('Recipe must have at least one ingredient');
           return;
         }
-        
+
         const steps = (object.steps || [])
-          .filter((s): s is NonNullable<typeof s> & { id: string; text: string } => 
-            s !== undefined && 
+          .filter((s): s is NonNullable<typeof s> & { id: string; text: string } =>
+            s !== undefined &&
             s !== null &&
-            s.id !== undefined && 
-            s.id !== null &&
             typeof s.id === 'string' &&
-            s.text !== undefined && 
-            s.text !== null &&
             typeof s.text === 'string' &&
             s.text.trim().length > 0
           )
           .map(s => ({
             id: s.id,
             text: s.text,
-            // Ensure dependsOn is always a valid array of strings
-            dependsOn: Array.isArray(s.dependsOn) 
-              ? s.dependsOn.filter((d): d is string => 
-                  d !== undefined && d !== null && typeof d === 'string'
-                )
+            dependsOn: Array.isArray(s.dependsOn)
+              ? s.dependsOn.filter((d): d is string => d !== undefined && d !== null && typeof d === 'string')
               : [],
-            // Preserve the new metadata fields
             duration: typeof s.duration === 'number' ? s.duration : undefined,
             isPassive: typeof s.isPassive === 'boolean' ? s.isPassive : undefined,
             needsTimer: typeof s.needsTimer === 'boolean' ? s.needsTimer : undefined,
-            ingredients: Array.isArray(s.ingredients) 
-              ? s.ingredients.filter((i): i is string => 
-                  i !== undefined && i !== null && typeof i === 'string'
-                )
+            ingredients: Array.isArray(s.ingredients)
+              ? s.ingredients.filter((i): i is string => i !== undefined && i !== null && typeof i === 'string')
               : undefined,
             temperature: typeof s.temperature === 'string' ? s.temperature : undefined,
           }));
-        
-        // Validate we have at least one valid step
+
         if (steps.length === 0) {
           setSaveError('Recipe must have at least one valid cooking step');
           return;
         }
 
-        // Clean up ingredientCategories (filter out undefined values from streaming)
-        const ingredientCategories = object.ingredientCategories 
+        const ingredientCategories = object.ingredientCategories
           ? Object.fromEntries(
               Object.entries(object.ingredientCategories).filter(
                 ([k, v]) => k !== undefined && v !== undefined
@@ -338,18 +268,25 @@ function AddRecipeForm({ onReset, textInputEnabled = false }: AddRecipeFormProps
         });
 
         if (result.success && result.id) {
+          localStorage.removeItem(STORAGE_KEY);
           router.push(`/recipes/${result.id}`);
         } else {
           setSaveError(result.error || 'Failed to save recipe');
         }
-      } catch (err) {
+      } catch {
         setSaveError('An unexpected error occurred');
       }
     });
   };
 
-  // Show save button if the merged object has all required data
   const isComplete = objectIsComplete;
+
+  // Badge label based on workflow status
+  const statusBadgeLabel = useMemo(() => {
+    if (!isLoading) return null;
+    if (statusMessage) return statusMessage;
+    return status === 'submitted' ? 'Starting...' : 'Processing...';
+  }, [isLoading, statusMessage, status]);
 
   return (
     <div className="space-y-8">
@@ -424,34 +361,12 @@ function AddRecipeForm({ onReset, textInputEnabled = false }: AddRecipeFormProps
               )}
             </div>
           )}
-          {error && (
+          {hasError && (
             <div className="flex items-center justify-between bg-destructive/10 p-3 rounded-md">
               <p className="text-sm text-destructive">
-                Error: {error.message || 'Failed to extract recipe'}
+                Failed to extract recipe. Please try again.
               </p>
               <Button variant="outline" size="sm" onClick={handleRetry}>
-                Retry
-              </Button>
-            </div>
-          )}
-          {(extractionFailed || isEmptyResponse || isValidButNoRecipe) && !error && !isInvalidRecipe && (
-            <div className="flex items-center justify-between bg-amber-100 dark:bg-amber-950 p-3 rounded-md">
-              <div>
-                <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
-                  {isEmptyResponse || isValidButNoRecipe
-                    ? 'Received empty response from server'
-                    : 'Extraction returned no data'}
-                </p>
-                <p className="text-xs text-amber-600 dark:text-amber-400">
-                  {isEmptyResponse || isValidButNoRecipe
-                    ? 'The server returned a successful response but no recipe data. This may be a temporary issue.'
-                    : inputMode === 'text'
-                      ? 'The AI couldn&apos;t extract a recipe from the provided text.'
-                      : 'The AI couldn&apos;t extract a recipe from this page. This can happen with some websites.'}
-                  {retryCount > 0 && ` (Attempt ${retryCount + 1})`}
-                </p>
-              </div>
-              <Button variant="outline" size="sm" onClick={handleRetry} className="ml-4">
                 Retry
               </Button>
             </div>
@@ -470,21 +385,21 @@ function AddRecipeForm({ onReset, textInputEnabled = false }: AddRecipeFormProps
           <p className="text-sm text-muted-foreground">
             {inputMode === 'text'
               ? 'Paste a recipe from any source and our AI will extract the ingredients, steps, and analyze which steps can run in parallel.'
-              : 'Paste any recipe URL and our AI will extract the ingredients, steps, and analyze which steps can run in parallel.'}
+              : 'Paste any recipe URL and our AI will extract and enhance the ingredients, steps, and analyze which steps can run in parallel.'}
           </p>
         </CardContent>
       </Card>
 
       {/* Streaming Results Section */}
-      {(isLoading || object) && !isInvalidRecipe && !isEmptyResponse && !isValidButNoRecipe && (
+      {(isLoading || object) && !isInvalidRecipe && (
         <Card className="overflow-hidden pt-0">
           {/* Hero Image */}
           <div className="relative w-full h-56 bg-gradient-to-br from-orange-100 to-amber-50 dark:from-orange-950 dark:to-amber-900">
             {isValidImageUrl && object ? (
               <>
-                <Image 
-                  src={object.imageUrl!} 
-                  alt={object.title || 'Recipe'} 
+                <Image
+                  src={object.imageUrl!}
+                  alt={object.title || 'Recipe'}
                   fill
                   unoptimized
                   className="object-cover"
@@ -516,9 +431,9 @@ function AddRecipeForm({ onReset, textInputEnabled = false }: AddRecipeFormProps
             {/* Status badge */}
             <div className="absolute top-3 right-3 flex gap-2">
               {!isLoading && (
-                <Button 
-                  variant="secondary" 
-                  size="sm" 
+                <Button
+                  variant="secondary"
+                  size="sm"
                   onClick={handleReset}
                   className="bg-white/90 dark:bg-black/70 hover:bg-white dark:hover:bg-black/90"
                 >
@@ -527,7 +442,7 @@ function AddRecipeForm({ onReset, textInputEnabled = false }: AddRecipeFormProps
               )}
               {isLoading ? (
                 <Badge variant="secondary" className="animate-pulse bg-white/90 dark:bg-black/70">
-                  {isEnhancing ? 'Enhancing...' : 'Extracting...'}
+                  {statusBadgeLabel}
                 </Badge>
               ) : isEnhanced ? (
                 <Badge className="bg-purple-600">Enhanced</Badge>
@@ -598,7 +513,7 @@ function AddRecipeForm({ onReset, textInputEnabled = false }: AddRecipeFormProps
                         </span>
                         <div className="flex-1 space-y-2">
                           <p className="text-sm">{step.text}</p>
-                          
+
                           {/* Compact metadata row */}
                           <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted-foreground">
                             {step.duration && (
@@ -652,10 +567,7 @@ function AddRecipeForm({ onReset, textInputEnabled = false }: AddRecipeFormProps
                               {step.ingredients.filter(Boolean).map((ing, idx) => {
                                 if (!ing) return null;
                                 const colors = getIngredientColors(ing, object?.ingredientCategories as Record<string, IngredientCategory> | undefined);
-                                // Safety check: ensure colors object exists (shouldn't happen after fix, but defensive)
-                                if (!colors || !colors.bg || !colors.text) {
-                                  return null;
-                                }
+                                if (!colors || !colors.bg || !colors.text) return null;
                                 return (
                                   <span
                                     key={idx}
@@ -693,18 +605,13 @@ function AddRecipeForm({ onReset, textInputEnabled = false }: AddRecipeFormProps
                 <Separator />
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                   <p className="text-sm text-muted-foreground">
-                    {isEnhanced 
-                      ? 'Recipe enhanced! Save it to view the dependency graph.'
+                    {isEnhanced
+                      ? 'Recipe extracted and enhanced! Save it to view the dependency graph.'
                       : isComplete
-                        ? 'Recipe extracted. Enhance to fill in missing details, or save now.'
-                        : 'Recipe extraction incomplete. Enhance to fill in missing details.'}
+                        ? 'Recipe extracted. Save it to view the dependency graph.'
+                        : 'Recipe extraction incomplete. Try extracting again.'}
                   </p>
                   <div className="flex flex-col gap-2 sm:flex-row">
-                    {!isEnhanced && inputMode === 'url' && (
-                      <Button variant="outline" onClick={handleEnhance} disabled={isPending}>
-                        Enhance Recipe
-                      </Button>
-                    )}
                     {isComplete && (
                       <Button onClick={handleSave} disabled={isPending}>
                         {isPending ? 'Saving...' : 'Save Recipe'}
@@ -714,11 +621,6 @@ function AddRecipeForm({ onReset, textInputEnabled = false }: AddRecipeFormProps
                 </div>
                 {saveError && (
                   <p className="text-sm text-destructive">{saveError}</p>
-                )}
-                {enhanceError && (
-                  <p className="text-sm text-destructive">
-                    Enhancement failed: {enhanceError.message || 'Unknown error'}
-                  </p>
                 )}
               </>
             )}
@@ -730,15 +632,16 @@ function AddRecipeForm({ onReset, textInputEnabled = false }: AddRecipeFormProps
 }
 
 // Wrapper component that forces remount when navigating to the add page
-// This ensures the form is reset when returning from other pages
 export function AddRecipeFormWrapper({ textInputEnabled }: { textInputEnabled?: boolean }) {
   const pathname = usePathname();
   const [mountKey, setMountKey] = useState(() => Date.now());
 
-  // Generate a new key when pathname changes to /add to force remount
   useEffect(() => {
     if (pathname === '/add') {
-      setMountKey(Date.now());
+      // Don't reset if there's a workflow run to resume
+      if (!localStorage.getItem(STORAGE_KEY)) {
+        setMountKey(Date.now());
+      }
     }
   }, [pathname]);
 
