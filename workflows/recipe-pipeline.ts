@@ -85,14 +85,16 @@ async function extractStep(prepared: PreparedContent) {
   });
 
   const chunkWriter = writable.getWriter();
-  for await (const partial of stream.partialObjectStream) {
-    await chunkWriter.write({ type: 'data-recipe-partial', data: partial });
+  try {
+    for await (const partial of stream.partialObjectStream) {
+      await chunkWriter.write({ type: 'data-recipe-partial', data: partial });
+    }
+    const finalObject = await stream.object;
+    await chunkWriter.write({ type: 'data-recipe-partial', data: finalObject });
+    return finalObject;
+  } finally {
+    chunkWriter.releaseLock();
   }
-  const finalObject = await stream.object;
-  await chunkWriter.write({ type: 'data-recipe-partial', data: finalObject });
-  chunkWriter.releaseLock();
-
-  return finalObject;
 }
 
 // ─── Step 3: Enhance Recipe ───────────────────────────────────────────────────
@@ -125,14 +127,16 @@ async function enhanceStep({
   });
 
   const chunkWriter = writable.getWriter();
-  for await (const partial of stream.partialObjectStream) {
-    await chunkWriter.write({ type: 'data-recipe-enhanced', data: partial });
+  try {
+    for await (const partial of stream.partialObjectStream) {
+      await chunkWriter.write({ type: 'data-recipe-enhanced', data: partial });
+    }
+    const finalObject = await stream.object;
+    await chunkWriter.write({ type: 'data-recipe-enhanced', data: finalObject });
+    return finalObject;
+  } finally {
+    chunkWriter.releaseLock();
   }
-  const finalObject = await stream.object;
-  await chunkWriter.write({ type: 'data-recipe-enhanced', data: finalObject });
-  chunkWriter.releaseLock();
-
-  return finalObject;
 }
 
 // ─── Finish ───────────────────────────────────────────────────────────────────

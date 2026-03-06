@@ -1,5 +1,5 @@
 import { Metadata } from 'next';
-import { AddRecipeFormWrapper } from '@/components/add-recipe-form';
+import { AddRecipeFormWrapper } from '@/components/add-recipe-form-loader';
 import { textInputEnabled } from '@/flags';
 
 export const metadata: Metadata = {

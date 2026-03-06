@@ -34,15 +34,11 @@ function AddRecipeForm({ onReset, textInputEnabled = false }: AddRecipeFormProps
   const [recipeText, setRecipeText] = useState('');
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [retryCount, setRetryCount] = useState(0);
-
-  const [storedRunId] = useState(() =>
-    typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null
-  );
+  const [storedRunId] = useState(() => localStorage.getItem(STORAGE_KEY));
 
   // Mark extraction as attempted when resuming a prior run
   const [hasAttemptedExtraction, setHasAttemptedExtraction] = useState(() =>
-    typeof window !== 'undefined' ? !!localStorage.getItem(STORAGE_KEY) : false
+    !!localStorage.getItem(STORAGE_KEY)
   );
 
   // WorkflowChatTransport only sends { messages } by default — use a ref to
@@ -62,6 +58,7 @@ function AddRecipeForm({ onReset, textInputEnabled = false }: AddRecipeFormProps
     }),
     ...(storedRunId ? { id: storedRunId, resume: true } : {}),
   });
+
 
   const isLoading = status === 'submitted' || status === 'streaming';
   const hasError = status === 'error' || !!error;
@@ -190,7 +187,6 @@ function AddRecipeForm({ onReset, textInputEnabled = false }: AddRecipeFormProps
     if (!hasInput) return;
     setSaveError(null);
     setHasAttemptedExtraction(true);
-    if (isRetry) setRetryCount(prev => prev + 1);
     setMessages([]);
     pendingBodyRef.current = {
       url: inputMode === 'url' ? url.trim() : undefined,
@@ -201,7 +197,14 @@ function AddRecipeForm({ onReset, textInputEnabled = false }: AddRecipeFormProps
 
   const handleExtract = useCallback(() => submitExtraction(false), [submitExtraction]);
   const handleRetry = useCallback(() => submitExtraction(true), [submitExtraction]);
-  const handleStop = useCallback(() => stop(), [stop]);
+  const handleStop = useCallback(() => {
+    const runId = localStorage.getItem(STORAGE_KEY);
+    if (runId) {
+      fetch(`/api/ingest/${runId}/stream`, { method: 'DELETE' });
+    }
+    stop();
+    handleReset();
+  }, [stop, handleReset]);
 
   const handleSave = () => {
     if (!object?.title || !object?.steps?.length) return;
