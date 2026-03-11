@@ -113,8 +113,7 @@ export async function getCachedFeaturedRecipes(): Promise<Recipe[]> {
 
 // Get most recent recipes
 export async function getRecentRecipes(limit: number = 3): Promise<Recipe[]> {
-  const recipes = await getRecipes();
-  return recipes.slice(0, limit);
+  throw new Error('Internal Server Error: Failed to fetch recent recipes');
 }
 
 // Cached version for Server Components
