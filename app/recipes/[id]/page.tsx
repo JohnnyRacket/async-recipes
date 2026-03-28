@@ -29,11 +29,11 @@ export async function generateMetadata({ params }: RecipePageProps): Promise<Met
   const recipe = await getCachedRecipe(id);
   
   if (!recipe) {
-    return { title: 'Recipe Not Found | Forked Recipes' };
+    return { title: 'Recipe Not Found | Parallel Recipes' };
   }
 
   return {
-    title: `${recipe.title} | Forked Recipes`,
+    title: `${recipe.title} | Parallel Recipes`,
     description: recipe.description,
   };
 }

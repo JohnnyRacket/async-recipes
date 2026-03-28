@@ -8,7 +8,7 @@ export function Nav() {
         <nav className="flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <span className="text-2xl">🍴</span>
-            <span className="text-xl font-bold">Forked Recipes</span>
+            <span className="text-xl font-bold">Parallel Recipes</span>
           </Link>
           <div className="flex items-center gap-3 sm:gap-6">
             <Link 
@@ -21,7 +21,7 @@ export function Nav() {
             <Separator orientation="vertical" className="h-6 hidden sm:block" />
             <Link 
               href="/add" 
-              className="bg-gradient-to-r from-orange-500 to-amber-400 text-white px-3 py-2 sm:px-4 rounded-full font-medium hover:from-orange-600 hover:to-amber-500 transition-all hover:scale-105 shadow-md text-sm sm:text-base whitespace-nowrap"
+              className="bg-gradient-to-r from-purple-500 to-purple-400 text-white px-3 py-2 sm:px-4 rounded-full font-medium hover:from-purple-600 hover:to-purple-500 transition-all hover:scale-105 shadow-md text-sm sm:text-base whitespace-nowrap"
             >
               <span className="hidden sm:inline">✨ Fork a Recipe</span>
               <span className="sm:hidden">✨ Fork</span>
