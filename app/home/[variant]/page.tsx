@@ -20,7 +20,7 @@ export default async function Home({
     getCachedRecipeCount(),
   ]);
 
-  return (
+  return ( 
     <div className="space-y-12">
       <ABTracker variant={variant} />
       <HeroSection totalCount={totalCount} />
