@@ -5,7 +5,7 @@ export function HeroSection({ totalCount }: { totalCount: number }) {
   return (
     <section className="text-center py-12 space-y-4">
       <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
-        🍴 Forked Recipes
+        🍴 Forked Recpes
       </h1>
       <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
         Fork recipes. Cook in parallel with friends. Share your favorite recipes.
