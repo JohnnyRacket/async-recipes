@@ -31,7 +31,7 @@ export function proxy(request: NextRequest) {
     let isNew = false;
 
     if (variant !== 'a' && variant !== 'b') {
-      variant = getBucket(['a', 'b']);
+      variant = 'a';
       isNew = true;
     }
 
