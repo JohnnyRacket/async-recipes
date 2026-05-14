@@ -6,7 +6,7 @@ import { RecipeInfiniteList } from '@/components/recipe-infinite-list';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export const metadata: Metadata = {
-  title: 'All Recipes | Forked Recipes',
+  title: 'All Recipes | Parallel Recipes',
   description: 'Browse all recipes with dependency graph visualization.',
 };
 
